@@ -1,6 +1,15 @@
+
 require("dotenv").config();
+
 const express = require("express");
 const connectDB = require("./config/db");
+const authRoutes = require("./routes/authRoutes");
+const driveRoutes = require("./routes/driveRoutes");
+const participantRoutes = require("./routes/participantRoutes");
+const configRoutes = require("./routes/configRoutes");
+const availabilityRoutes = require("./routes/availabilityRoutes");
+const schedulingRoutes = require("./routes/schedulingRoutes");
+const evaluationRoutes = require("./routes/evaluationRoutes");
 
 // Register all 9 Mongoose models
 require("./models/User");
@@ -16,6 +25,13 @@ require("./models/Evaluation");
 const app = express();
 
 app.use(express.json());
+app.use("/api/auth", authRoutes);
+app.use("/api/drives", driveRoutes);
+app.use("/api/drives", participantRoutes);
+app.use("/api/drives", configRoutes);
+app.use("/api/drives", availabilityRoutes);
+app.use("/api/drives", schedulingRoutes);
+app.use("/api", evaluationRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
