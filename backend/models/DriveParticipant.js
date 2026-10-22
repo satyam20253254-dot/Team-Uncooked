@@ -4,21 +4,18 @@ const driveParticipantSchema = new mongoose.Schema(
   {
     driveId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Drive',
-      required: [true, 'Drive ID is required'],
+      ref: "Drive",
+      required: true,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'User ID is required'],
+      ref: "User",
+      required: true,
     },
-    participantRole: {
+    role: {
       type: String,
-      enum: {
-        values: ['candidate', 'interviewer'],
-        message: '{VALUE} is not a valid participant role',
-      },
-      required: [true, 'Participant role is required'],
+      enum: ["candidate", "interviewer"],
+      required: true,
     },
     eligibleRoundIds: [
       {
@@ -28,11 +25,12 @@ const driveParticipantSchema = new mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: {
-        values: ['active', 'inactive'],
-        message: '{VALUE} is not a valid status',
-      },
-      default: 'active',
+      enum: ["active", "withdrawn", "disqualified"],
+      default: "active",
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: undefined,
     },
   },
   {
@@ -40,10 +38,7 @@ const driveParticipantSchema = new mongoose.Schema(
   }
 );
 
-// Compound Index: Ek hi drive mein same user multiple times enroll na ho sake
-driveParticipantSchema.index({ driveId: 1, userId: 1 }, { unique: true });
-
-// Query Index: Fast retrieval of all participants in a drive by role
-driveParticipantSchema.index({ driveId: 1, participantRole: 1 });
+driveParticipantSchema.index({ drive: 1, user: 1 }, { unique: true });
+driveParticipantSchema.index({ drive: 1, role: 1, status: 1 });
 
 module.exports = mongoose.model('DriveParticipant', driveParticipantSchema);

@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Name is required'],
       trim: true,
+      maxlength: 100,
     },
     email: {
       type: String,
@@ -14,24 +15,18 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        'Please enter a valid email address',
-      ],
+      match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
-    password: {
+    passwordHash: {
       type: String,
-      required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters long'],
-      select: false, // Prevents returning password field in standard queries (security check)
+      required: true,
+      select: false,
     },
     role: {
       type: String,
-      enum: {
-        values: ['coordinator', 'candidate', 'interviewer'],
-        message: '{VALUE} is not a valid role',
-      },
-      required: [true, 'User role is required'],
+      enum: ["admin", "coordinator", "candidate", "interviewer"],
+      required: true,
+      default: "candidate",
     },
     isActive: {
       type: Boolean,

@@ -1,83 +1,67 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const interviewSchema = new mongoose.Schema(
   {
-    driveId: {
+    drive: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Drive',
-      required: [true, 'Drive ID is required'],
+      ref: "Drive",
+      required: true,
     },
-    scheduleVersionId: {
+    scheduleVersion: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'ScheduleVersion',
-      required: [true, 'Schedule version ID is required'],
+      ref: "ScheduleVersion",
+      required: true,
     },
-    candidateId: {
+    round: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Candidate ID is required'],
+      ref: "Round",
+      required: true,
     },
-    roundId: {
+    candidate: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Round',
-      required: [true, 'Round ID is required'],
+      ref: "User",
+      required: true,
     },
-    interviewerId: {
+    interviewer: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Interviewer ID is required'],
+      ref: "User",
+      required: true,
     },
-    roomId: {
+    room: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Room',
-      required: [true, 'Room ID is required'],
+      ref: "Room",
+      required: true,
     },
     startTime: {
       type: Date,
-      required: [true, 'Start time is required'],
+      required: true,
     },
     endTime: {
       type: Date,
-      required: [true, 'End time is required'],
+      required: true,
     },
     status: {
       type: String,
-      enum: {
-        values: ['scheduled', 'completed', 'cancelled'],
-        message: '{VALUE} is not a valid interview status',
-      },
-      default: 'scheduled',
+      enum: ["scheduled", "completed", "cancelled", "rescheduled"],
+      default: "scheduled",
     },
-    assignmentSource: {
+    unassignedReason: {
       type: String,
-      enum: {
-        values: ['automatic', 'manual'],
-        message: '{VALUE} is not a valid assignment source',
-      },
-      default: 'automatic',
+      trim: true,
+      default: "",
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Pre-validation Hook: Ensure endTime is strictly after startTime
-interviewSchema.pre('validate', function (next) {
+interviewSchema.pre("validate", function () {
   if (this.startTime && this.endTime && this.endTime <= this.startTime) {
-    this.invalidate('endTime', 'End time must be strictly after start time');
+    this.invalidate("endTime", "End time must be later than start time.");
   }
-  next();
 });
 
-// Compound Indexing for fast overlap checking and dashboard filtering
-// 1. Candidate overlap check
-interviewSchema.index({ scheduleVersionId: 1, candidateId: 1, startTime: 1, endTime: 1 });
+interviewSchema.index({ drive: 1, scheduleVersion: 1, candidate: 1 });
+interviewSchema.index({ drive: 1, scheduleVersion: 1, interviewer: 1 });
+interviewSchema.index({ drive: 1, scheduleVersion: 1, room: 1 });
 
-// 2. Interviewer overlap check
-interviewSchema.index({ scheduleVersionId: 1, interviewerId: 1, startTime: 1, endTime: 1 });
-
-// 3. Room overlap check
-interviewSchema.index({ scheduleVersionId: 1, roomId: 1, startTime: 1, endTime: 1 });
-
-module.exports = mongoose.model('Interview', interviewSchema);
+module.exports = mongoose.model("Interview", interviewSchema);

@@ -1,48 +1,46 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const availabilitySchema = new mongoose.Schema(
   {
-    driveId: {
+    drive: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Drive',
-      required: [true, 'Drive ID is required'],
+      ref: "Drive",
+      required: true,
     },
-    resourceType: {
+    ownerType: {
       type: String,
-      enum: {
-        values: ['candidate', 'interviewer', 'room'],
-        message: '{VALUE} is not a valid resource type',
-      },
-      required: [true, 'Resource type is required'],
+      enum: ["candidate", "interviewer", "room"],
+      required: true,
     },
-    resourceId: {
+    ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: [true, 'Resource ID is required'],
-      // Points to User ID (if candidate/interviewer) or Room ID (if room)
+      required: true,
+      refPath: "ownerModel",
+    },
+    ownerModel: {
+      type: String,
+      required: true,
+      enum: ["User", "Room"],
     },
     startTime: {
       type: Date,
-      required: [true, 'Start time is required'],
+      required: true,
     },
     endTime: {
       type: Date,
-      required: [true, 'End time is required'],
+      required: true,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Schema Validation: Ensure endTime is after startTime
-availabilitySchema.pre('validate', function (next) {
+availabilitySchema.pre("validate", function () {
   if (this.startTime && this.endTime && this.endTime <= this.startTime) {
-    this.invalidate('endTime', 'End time must be after start time');
+    this.invalidate("endTime", "End time must be later than start time.");
   }
-  next();
 });
 
-// Query Index: Fast lookup during overlap check and scheduling calculations
-availabilitySchema.index({ driveId: 1, resourceType: 1, resourceId: 1 });
+availabilitySchema.index({ drive: 1, ownerType: 1, ownerId: 1 });
+availabilitySchema.index({ drive: 1, startTime: 1, endTime: 1 });
 
-module.exports = mongoose.model('Availability', availabilitySchema);
+module.exports = mongoose.model("Availability", availabilitySchema);

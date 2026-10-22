@@ -6,19 +6,36 @@ const driveSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Drive name is required'],
       trim: true,
+      maxlength: 150,
     },
     companyName: {
       type: String,
       required: [true, 'Company name is required'],
       trim: true,
+      default: "",
     },
     startDate: {
       type: Date,
-      required: [true, 'Start date is required'],
+      required: true,
     },
     endDate: {
       type: Date,
-      required: [true, 'End date is required'],
+      required: true,
+    },
+    dailyStartTime: {
+      type: String,
+      required: true,
+      match: /^([01]\d|2[0-3]):[0-5]\d$/,
+    },
+    dailyEndTime: {
+      type: String,
+      required: true,
+      match: /^([01]\d|2[0-3]):[0-5]\d$/,
+    },
+    timeZone: {
+      type: String,
+      required: true,
+      default: "Asia/Kolkata",
     },
     dailyStartTime: {
       type: String,
@@ -30,29 +47,13 @@ const driveSchema = new mongoose.Schema(
     },
     dailyEndTime: {
       type: String,
-      required: [true, 'Daily end time is required'],
-      match: [
-        /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
-        'Please enter daily end time in HH:mm format (e.g., 17:00)',
-      ],
-    },
-    timeZone: {
-      type: String,
-      default: 'Asia/Kolkata',
-      trim: true,
+      enum: ["draft", "configured", "scheduled", "completed", "cancelled"],
+      default: "draft",
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Creator (Coordinator) ID is required'],
-    },
-    status: {
-      type: String,
-      enum: {
-        values: ['draft', 'published', 'completed'],
-        message: '{VALUE} is not a valid drive status',
-      },
-      default: 'draft',
+      ref: "User",
+      required: true,
     },
   },
   {
@@ -60,15 +61,13 @@ const driveSchema = new mongoose.Schema(
   }
 );
 
-// Schema Validation: Ensure endDate is on or after startDate
-driveSchema.pre('validate', function (next) {
+driveSchema.pre("validate", function () {
   if (this.startDate && this.endDate && this.endDate < this.startDate) {
-    this.invalidate('endDate', 'End date cannot be earlier than start date');
+    this.invalidate("endDate", "End date must be on or after start date.");
   }
-  next();
+  if (this.dailyStartTime && this.dailyEndTime && this.dailyEndTime <= this.dailyStartTime) {
+    this.invalidate("dailyEndTime", "End time must be later than start time.");
+  }
 });
 
-// Indexing for faster filtering by status and dates
-driveSchema.index({ status: 1, startDate: 1 });
-
-module.exports = mongoose.model('Drive', driveSchema);
+module.exports = mongoose.model("Drive", driveSchema);

@@ -1,36 +1,46 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const roomSchema = new mongoose.Schema(
   {
-    driveId: {
+    drive: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Drive',
-      required: [true, 'Drive ID is required'],
+      ref: "Drive",
+      required: true,
     },
     name: {
       type: String,
-      required: [true, 'Room name is required'],
+      required: true,
       trim: true,
+      maxlength: 100,
     },
     capacity: {
       type: Number,
+      required: true,
+      min: 1,
       default: 1,
-      min: [1, 'Capacity must be at least 1'],
+    },
+    isVirtual: {
+      type: Boolean,
+      default: false,
+    },
+    meetingLink: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    location: {
+      type: String,
+      trim: true,
+      default: "",
     },
     isActive: {
       type: Boolean,
       default: true,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Compound Index: Same drive ke andar identical room name block karein
-roomSchema.index({ driveId: 1, name: 1 }, { unique: true });
+roomSchema.index({ drive: 1, name: 1 }, { unique: true });
 
-// Index for fetching active rooms for a drive
-roomSchema.index({ driveId: 1, isActive: 1 });
-
-module.exports = mongoose.model('Room', roomSchema);
+module.exports = mongoose.model("Room", roomSchema);
