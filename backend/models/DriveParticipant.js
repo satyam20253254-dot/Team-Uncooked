@@ -1,13 +1,13 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const driveParticipantSchema = new mongoose.Schema(
   {
-    drive: {
+    driveId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Drive",
       required: true,
     },
-    user: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -17,6 +17,12 @@ const driveParticipantSchema = new mongoose.Schema(
       enum: ["candidate", "interviewer"],
       required: true,
     },
+    eligibleRoundIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Round',
+      },
+    ],
     status: {
       type: String,
       enum: ["active", "withdrawn", "disqualified"],
@@ -27,10 +33,12 @@ const driveParticipantSchema = new mongoose.Schema(
       default: undefined,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 driveParticipantSchema.index({ drive: 1, user: 1 }, { unique: true });
 driveParticipantSchema.index({ drive: 1, role: 1, status: 1 });
 
-module.exports = mongoose.model("DriveParticipant", driveParticipantSchema);
+module.exports = mongoose.model('DriveParticipant', driveParticipantSchema);

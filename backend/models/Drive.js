@@ -1,15 +1,16 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const driveSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: true,
+      required: [true, 'Drive name is required'],
       trim: true,
       maxlength: 150,
     },
-    description: {
+    companyName: {
       type: String,
+      required: [true, 'Company name is required'],
       trim: true,
       default: "",
     },
@@ -36,7 +37,15 @@ const driveSchema = new mongoose.Schema(
       required: true,
       default: "Asia/Kolkata",
     },
-    status: {
+    dailyStartTime: {
+      type: String,
+      required: [true, 'Daily start time is required'],
+      match: [
+        /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+        'Please enter daily start time in HH:mm format (e.g., 09:00)',
+      ],
+    },
+    dailyEndTime: {
       type: String,
       enum: ["draft", "configured", "scheduled", "completed", "cancelled"],
       default: "draft",
@@ -47,7 +56,9 @@ const driveSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 driveSchema.pre("validate", function () {
