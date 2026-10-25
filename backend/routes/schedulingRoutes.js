@@ -1,17 +1,66 @@
-const express = require("express");
-const router = express.Router();
-const { 
-  generateSchedule, 
-  publishSchedule, 
-  getScheduleVersions, 
-  getInterviewsByVersion 
-} = require("../controllers/schedulingController");
-const { verifyToken, authorizeRoles } = require("../middleware/auth");
 
-router.get("/:driveId/schedules", verifyToken, getScheduleVersions);
-router.get("/schedules/:versionId/interviews", verifyToken, getInterviewsByVersion);
+import { Router } from "express";
 
-router.post("/:driveId/schedules/generate", verifyToken, authorizeRoles("admin", "coordinator"), generateSchedule);
-router.put("/:driveId/schedules/:versionId/publish", verifyToken, authorizeRoles("admin", "coordinator"), publishSchedule);
+import {
+  generateSchedule,
+  publishSchedule,
+  discardDraftSchedule,
+  getScheduleVersions,
+  getInterviewsByVersion,
+  getAvailableSlotsForRound,
+  selfBookSlot,
+} from "../controllers/schedulingController.js";
 
-module.exports = router;
+import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/role.middleware.js";
+
+const router = Router();
+
+// Schedule generation & publishing
+router.post(
+  "/:driveId/schedules/generate",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  generateSchedule
+);
+
+router.patch(
+  "/:driveId/schedules/:versionId/publish",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  publishSchedule
+);
+
+router.delete(
+  "/:driveId/schedules/:versionId",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  discardDraftSchedule
+);
+
+router.get(
+  "/:driveId/schedules",
+  verifyJWT,
+  getScheduleVersions
+);
+
+router.get(
+  "/:driveId/schedules/:versionId/interviews",
+  verifyJWT,
+  getInterviewsByVersion
+);
+
+// Candidate Self-Booking (PS Foundational Scope)
+router.get(
+  "/:driveId/rounds/:roundId/available-slots",
+  verifyJWT,
+  getAvailableSlotsForRound
+);
+
+router.post(
+  "/:driveId/rounds/:roundId/self-book",
+  verifyJWT,
+  selfBookSlot
+);
+
+export default router;
