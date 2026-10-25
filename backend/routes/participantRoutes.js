@@ -1,12 +1,45 @@
-const express = require("express");
-const router = express.Router();
-const { addParticipant, getDriveParticipants } = require("../controllers/participantController");
-const { verifyToken, authorizeRoles } = require("../middleware/auth");
+
+import { Router } from "express";
+
+import {
+  addParticipant,
+  getDriveParticipants,
+  updateParticipantStatus,
+  removeParticipant,
+} from "../controllers/participantController.js";
+
+import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/role.middleware.js";
+
+const router = Router();
 
 // View participants in a drive (logged-in users)
-router.get("/:driveId/participants", verifyToken, getDriveParticipants);
+router.get(
+  "/:driveId/participants",
+  verifyJWT,
+  getDriveParticipants
+);
 
-// Only admin/coordinator can add participants to a drive
-router.post("/:driveId/participants", verifyToken, authorizeRoles("admin", "coordinator"), addParticipant);
+// Admin/Coordinator participant management
+router.post(
+  "/:driveId/participants",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  addParticipant
+);
 
-module.exports = router;
+router.patch(
+  "/:driveId/participants/:participantId",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  updateParticipantStatus
+);
+
+router.delete(
+  "/:driveId/participants/:participantId",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  removeParticipant
+);
+
+export default router;

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const driveParticipantSchema = new mongoose.Schema(
   {
@@ -7,30 +7,34 @@ const driveParticipantSchema = new mongoose.Schema(
       ref: "Drive",
       required: true,
     },
+
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
+
     role: {
       type: String,
       enum: ["candidate", "interviewer"],
       required: true,
     },
+
     eligibleRoundIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Round',
+        ref: "Round",
       },
     ],
+
     status: {
       type: String,
       enum: ["active", "withdrawn", "disqualified"],
       default: "active",
     },
+
     metadata: {
       type: mongoose.Schema.Types.Mixed,
-      default: undefined,
     },
   },
   {
@@ -38,7 +42,20 @@ const driveParticipantSchema = new mongoose.Schema(
   }
 );
 
-driveParticipantSchema.index({ drive: 1, user: 1 }, { unique: true });
-driveParticipantSchema.index({ drive: 1, role: 1, status: 1 });
+// Prevent the same user from joining the same drive more than once.
+driveParticipantSchema.index(
+  { driveId: 1, userId: 1 },
+  { unique: true }
+);
 
-module.exports = mongoose.model('DriveParticipant', driveParticipantSchema);
+// Useful for querying participants by drive, role, and status.
+driveParticipantSchema.index({
+  driveId: 1,
+  role: 1,
+  status: 1,
+});
+
+export const DriveParticipant = mongoose.model(
+  "DriveParticipant",
+  driveParticipantSchema
+);
