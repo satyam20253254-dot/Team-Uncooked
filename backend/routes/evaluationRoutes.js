@@ -1,9 +1,21 @@
-const express = require("express");
-const router = express.Router();
-const { submitEvaluation, getEvaluationByInterview } = require("../controllers/evaluationController");
-const { verifyToken, authorizeRoles } = require("../middleware/auth");
 
-router.get("/interviews/:interviewId/evaluation", verifyToken, getEvaluationByInterview);
-router.post("/interviews/:interviewId/evaluation", verifyToken, authorizeRoles("admin", "coordinator", "interviewer"), submitEvaluation);
+import { Router } from "express";
 
-module.exports = router;
+import {
+  getCandidateRankingMatrix,
+} from "../controllers/evaluationController.js";
+
+import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/role.middleware.js";
+
+const router = Router();
+
+// Candidate ranking matrix for a drive (PS Victory tier)
+router.get(
+  "/:driveId/ranking-matrix",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator", "interviewer"),
+  getCandidateRankingMatrix
+);
+
+export default router;

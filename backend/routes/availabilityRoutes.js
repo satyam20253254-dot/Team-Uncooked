@@ -1,12 +1,35 @@
-const express = require("express");
-const router = express.Router();
-const { setAvailability, getDriveAvailabilities } = require("../controllers/availabilityController");
-const { verifyToken } = require("../middleware/auth");
+
+import { Router } from "express";
+
+import {
+  setAvailability,
+  getDriveAvailabilities,
+  deleteAvailability,
+} from "../controllers/availabilityController.js";
+
+import { verifyJWT } from "../middleware/auth.middleware.js";
+
+const router = Router();
 
 // View availabilities for a drive
-router.get("/:driveId/availabilities", verifyToken, getDriveAvailabilities);
+router.get(
+  "/:driveId/availabilities",
+  verifyJWT,
+  getDriveAvailabilities
+);
 
-// Set availability time window
-router.post("/:driveId/availabilities", verifyToken, setAvailability);
+// Set an availability time window
+router.post(
+  "/:driveId/availabilities",
+  verifyJWT,
+  setAvailability
+);
 
-module.exports = router;
+// Delete an availability time window
+router.delete(
+  "/:driveId/availabilities/:availabilityId",
+  verifyJWT,
+  deleteAvailability
+);
+
+export default router;

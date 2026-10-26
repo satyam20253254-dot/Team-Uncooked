@@ -1,19 +1,76 @@
-const express = require("express");
-const router = express.Router();
-const { 
-  createRound, 
-  getRoundsByDrive, 
-  createRoom, 
-  getRoomsByDrive 
-} = require("../controllers/configController");
-const { verifyToken, authorizeRoles } = require("../middleware/auth");
+
+import { Router } from "express";
+
+import {
+  createRound,
+  getRoundsByDrive,
+  updateRound,
+  deleteRound,
+  createRoom,
+  getRoomsByDrive,
+  updateRoom,
+  deleteRoom,
+} from "../controllers/configController.js";
+
+import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/role.middleware.js";
+
+const router = Router();
 
 // Rounds Routes
-router.get("/:driveId/rounds", verifyToken, getRoundsByDrive);
-router.post("/:driveId/rounds", verifyToken, authorizeRoles("admin", "coordinator"), createRound);
+router.get(
+  "/:driveId/rounds",
+  verifyJWT,
+  getRoundsByDrive
+);
+
+router.post(
+  "/:driveId/rounds",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  createRound
+);
+
+router.put(
+  "/:driveId/rounds/:roundId",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  updateRound
+);
+
+router.delete(
+  "/:driveId/rounds/:roundId",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  deleteRound
+);
 
 // Rooms Routes
-router.get("/:driveId/rooms", verifyToken, getRoomsByDrive);
-router.post("/:driveId/rooms", verifyToken, authorizeRoles("admin", "coordinator"), createRoom);
+router.get(
+  "/:driveId/rooms",
+  verifyJWT,
+  getRoomsByDrive
+);
 
-module.exports = router;
+router.post(
+  "/:driveId/rooms",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  createRoom
+);
+
+router.put(
+  "/:driveId/rooms/:roomId",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  updateRoom
+);
+
+router.delete(
+  "/:driveId/rooms/:roomId",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  deleteRoom
+);
+
+export default router;

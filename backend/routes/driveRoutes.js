@@ -1,13 +1,53 @@
-const express = require("express");
-const router = express.Router();
-const { createDrive, getAllDrives, getDriveById } = require("../controllers/driveController");
-const { verifyToken, authorizeRoles } = require("../middleware/auth");
 
-// Public or logged-in users can view drives
-router.get("/", verifyToken, getAllDrives);
-router.get("/:id", verifyToken, getDriveById);
+import { Router } from "express";
 
-// Only admins and coordinators can create drives
-router.post("/", verifyToken, authorizeRoles("admin", "coordinator"), createDrive);
+import {
+  createDrive,
+  getAllDrives,
+  getDriveById,
+  updateDrive,
+  updateDriveStatus,
+  deleteDrive,
+} from "../controllers/driveController.js";
 
-module.exports = router;
+import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/role.middleware.js";
+
+const router = Router();
+
+// View all drives (authenticated users)
+router.get("/", verifyJWT, getAllDrives);
+
+// View a specific drive (authenticated users)
+router.get("/:id", verifyJWT, getDriveById);
+
+// Admin/Coordinator drive management
+router.post(
+  "/",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  createDrive
+);
+
+router.put(
+  "/:id",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  updateDrive
+);
+
+router.patch(
+  "/:id/status",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  updateDriveStatus
+);
+
+router.delete(
+  "/:id",
+  verifyJWT,
+  authorizeRoles("admin", "coordinator"),
+  deleteDrive
+);
+
+export default router;
