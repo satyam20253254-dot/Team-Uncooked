@@ -822,6 +822,9 @@ export const publishSchedule = asyncHandler(async (req, res) => {
   targetVersion.publishedAt = new Date();
   await targetVersion.save();
 
+  // Transition Drive status to scheduled
+  await Drive.findByIdAndUpdate(driveId, { status: "scheduled" });
+
   return res.status(200).json(
     new ApiResponse(
       200,

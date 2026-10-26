@@ -14,7 +14,7 @@ const router = Router();
 router.get(
   "/:driveId/ranking-matrix",
   verifyJWT,
-  authorizeRoles("admin", "coordinator"),
+  authorizeRoles("admin", "coordinator", "interviewer"),
   getCandidateRankingMatrix
 );
 

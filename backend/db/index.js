@@ -18,7 +18,10 @@
 import dns from "node:dns";
 import mongoose from "mongoose";
 
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
+if (process.env.USE_GOOGLE_DNS === "true") {
+  dns.setServers(["8.8.8.8", "8.8.4.4"]);
+}
+
 
 const connectDB = async () => {
   try {
