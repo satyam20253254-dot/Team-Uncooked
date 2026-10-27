@@ -6,21 +6,16 @@ import {
   Video,
   UserCheck,
   CalendarDays,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
   Download,
-  Calendar,
   ChevronRight,
-  ExternalLink,
 } from 'lucide-react'
-import api from '../services/api'
+import api, { API_BASE_URL } from '../services/api'
 import { useDrive } from '../context/DriveContext'
-import { useAuth } from '../context/AuthContext'
 
 function SelfBooking() {
   const { activeDrive, rounds } = useDrive()
-  const { user } = useAuth()
 
   const [selectedRoundId, setSelectedRoundId] = useState('')
   const [availableSlots, setAvailableSlots] = useState([])
@@ -34,7 +29,8 @@ function SelfBooking() {
   // Default to first round
   useEffect(() => {
     if (rounds.length > 0 && !selectedRoundId) {
-      setSelectedRoundId(rounds[0]._id)
+      const timer = setTimeout(() => setSelectedRoundId(rounds[0]._id), 0)
+      return () => clearTimeout(timer)
     }
   }, [rounds, selectedRoundId])
 
@@ -65,8 +61,11 @@ function SelfBooking() {
   }, [activeDrive, selectedRoundId])
 
   useEffect(() => {
-    fetchSlots()
-    fetchMyBookings()
+    const timer = setTimeout(() => {
+      fetchSlots()
+      fetchMyBookings()
+    }, 0)
+    return () => clearTimeout(timer)
   }, [fetchSlots, fetchMyBookings])
 
   const handleBookSlot = async (slot) => {
@@ -106,7 +105,7 @@ function SelfBooking() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-bold text-purple-700 uppercase">
+            <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-teal-700 uppercase">
               Interview booking
             </span>
           </div>
@@ -150,7 +149,7 @@ function SelfBooking() {
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <a
-                  href={`http://localhost:5002/api/v1/interviews/${confirmedBooking._id || ''}/calendar.ics`}
+                  href={`${API_BASE_URL}/interviews/${confirmedBooking._id || ''}/calendar.ics`}
                   download
                   className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800"
                 >
@@ -179,9 +178,9 @@ function SelfBooking() {
             <button
               key={round._id}
               onClick={() => setSelectedRoundId(round._id)}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
                 selectedRoundId === round._id
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                   : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
               }`}
             >
@@ -206,7 +205,7 @@ function SelfBooking() {
               <span className="flex items-center gap-1">
                 <strong>Target Skills:</strong>
                 {selectedRound.requiredSkills.map((s) => (
-                  <span key={s} className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">
+                  <span key={s} className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">
                     {s}
                   </span>
                 ))}
@@ -232,7 +231,7 @@ function SelfBooking() {
 
         {loading ? (
           <div className="py-16 text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-r-transparent" />
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-amber-600 border-r-transparent" />
             <p className="mt-3 text-sm text-slate-500 font-medium">Finding available times...</p>
           </div>
         ) : availableSlots.length === 0 ? (
@@ -266,11 +265,11 @@ function SelfBooking() {
               return (
                 <div
                   key={index}
-                  className="flex flex-col justify-between rounded-xl border border-slate-200 p-4 transition hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-50/50"
+                  className="flex flex-col justify-between rounded-xl border border-slate-200 p-4 transition hover:border-amber-300 hover:shadow-md hover:shadow-amber-50/50"
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
                         <CalendarDays size={13} />
                         {dateString}
                       </span>
@@ -287,8 +286,8 @@ function SelfBooking() {
                       <p className="flex items-center gap-1.5">
                         {slot.isVirtual ? (
                           <>
-                            <Video size={14} className="text-purple-500 shrink-0" />
-                            <span className="text-purple-700 font-medium truncate">Virtual Meeting Link</span>
+                            <Video size={14} className="text-teal-500 shrink-0" />
+                            <span className="text-teal-700 font-medium truncate">Virtual Meeting Link</span>
                           </>
                         ) : (
                           <>
@@ -303,7 +302,7 @@ function SelfBooking() {
                   <button
                     onClick={() => handleBookSlot(slot)}
                     disabled={bookingLoading}
-                    className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 active:scale-[0.98] disabled:opacity-50"
+                    className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-50"
                   >
                     <span>Confirm Slot</span>
                     <ChevronRight size={14} />
@@ -336,7 +335,7 @@ function SelfBooking() {
 
                 <div className="flex items-center gap-2">
                   <a
-                    href={`http://localhost:5002/api/v1/interviews/${interview._id}/calendar.ics`}
+                    href={`${API_BASE_URL}/interviews/${interview._id}/calendar.ics`}
                     download
                     className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                   >

@@ -2,33 +2,30 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Search,
   CalendarDays,
-  Clock,
-  MapPin,
-  UserRound,
   WandSparkles,
   Send,
-  Plus,
   X,
   CheckCircle2,
   AlertCircle,
   Download,
   RotateCcw,
-  Sparkles,
   ExternalLink,
-  ShieldCheck,
   Video,
 } from 'lucide-react'
 import WeeklyCalendar from '../components/WeeklyCalendar'
-import api from '../services/api'
+import api, { API_BASE_URL } from '../services/api'
 import { useDrive } from '../context/DriveContext'
 import { useAuth } from '../context/AuthContext'
 
 function Schedule() {
-  const { activeDrive, rounds } = useDrive()
-  const { role, user } = useAuth()
+  const { activeDrive } = useDrive()
+  const { role } = useAuth()
+  const isCoordinator = role === 'coordinator' || role === 'admin'
+  const isInterviewer = role === 'interviewer'
 
   const [interviews, setInterviews] = useState([])
-  const [scheduleVersions, setScheduleVersions] = useState([])
+  const [unassigned, setUnassigned] = useState([])
+  const [currentTime, setCurrentTime] = useState(null)
   const [activeVersion, setActiveVersion] = useState(null)
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -47,18 +44,25 @@ function Schedule() {
   // Fetch schedule versions for active drive
   const fetchSchedule = useCallback(async () => {
     if (!activeDrive?._id) return
+    setCurrentTime(Date.now())
     setLoading(true)
-    setBannerError(null)
     try {
+      if (isInterviewer) {
+        const res = await api.get(`/my-interviews?driveId=${encodeURIComponent(activeDrive._id)}`)
+        setActiveVersion(null)
+        setInterviews(res?.data?.interviews || [])
+        setUnassigned([])
+        return
+      }
+
       const res = await api.get(`/drives/${activeDrive._id}/schedules`)
       const versions = res?.data?.versions || []
-      setScheduleVersions(versions)
 
       if (versions.length > 0) {
-        // Default to latest version (published or draft)
-        const published = versions.find((v) => v.status === 'published')
-        const target = published || versions[0]
+        // API sorts by version number descending; always show the newest draft or published version.
+        const target = versions[0]
         setActiveVersion(target)
+        setUnassigned(target.unassignedInterviews || [])
 
         // Fetch interviews for this version
         const intRes = await api.get(`/drives/${activeDrive._id}/schedules/${target._id}/interviews`)
@@ -66,17 +70,20 @@ function Schedule() {
       } else {
         setActiveVersion(null)
         setInterviews([])
+        setUnassigned([])
       }
     } catch (err) {
       console.warn('Could not load schedule versions:', err)
       setInterviews([])
+      setBannerError(err.message || 'Could not load the schedule for this drive.')
     } finally {
       setLoading(false)
     }
-  }, [activeDrive])
+  }, [activeDrive, isInterviewer])
 
   useEffect(() => {
-    fetchSchedule()
+    const timer = setTimeout(fetchSchedule, 0)
+    return () => clearTimeout(timer)
   }, [fetchSchedule])
 
   // Generate a draft schedule from current availability and round requirements.
@@ -91,11 +98,13 @@ function Schedule() {
       })
 
       const data = res?.data
-      setBannerNotice(
-        `Draft schedule created with ${data?.totalInterviewsScheduled || 0} interviews for ${
-          data?.totalCandidates || 0
-        } candidates without time or room collisions.`
-      )
+      const scheduledCount = data?.totalInterviewsScheduled || 0
+      if (scheduledCount === 0) {
+        setBannerError('No interviews could be placed. Review the unassigned interview reasons below and add matching future availability.')
+      } else {
+        const unassignedCount = data?.totalUnassigned || 0
+        setBannerNotice(`Draft schedule created with ${scheduledCount} conflict-free interviews${unassignedCount ? `; ${unassignedCount} still need a valid slot` : ''}.`)
+      }
       await fetchSchedule()
     } catch (err) {
       setBannerError(err.message || 'Generation failed. Ensure candidates, interviewers with skills, and rooms exist.')
@@ -196,6 +205,12 @@ function Schedule() {
 
     return matchesSearch && matchesStatus
   })
+  const pastScheduledCount = interviews.filter(
+    (interview) =>
+      currentTime &&
+      ['scheduled', 'rescheduled'].includes(interview.status) &&
+      new Date(interview.endTime).getTime() < currentTime
+  ).length
 
   return (
     <div className="w-full min-w-0 space-y-6">
@@ -203,8 +218,8 @@ function Schedule() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700 uppercase">
-              Interview schedule
+            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 uppercase">
+              {isInterviewer ? 'My assignments' : 'Interview schedule'}
             </span>
             {activeVersion && (
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
@@ -213,35 +228,74 @@ function Schedule() {
             )}
           </div>
           <h1 className="mt-1 text-3xl font-bold text-slate-900">
-            Interview schedule
+            {isInterviewer ? 'My interview schedule' : 'Interview schedule'}
           </h1>
           <p className="mt-1 text-slate-500">
-            Create and review interview times based on availability, interviewer expertise, and room capacity.
+            {isInterviewer
+              ? 'Review only the interviews assigned to you, with calendar links and rescheduling tools.'
+              : 'Create and review interview times based on availability, interviewer expertise, and room capacity.'}
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        {isCoordinator && <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={handleGenerateSchedule}
-            disabled={generating}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 active:scale-[0.98] disabled:opacity-50"
+            disabled={generating || !activeDrive?._id}
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/25 transition hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-50"
           >
             <WandSparkles size={16} />
-            {generating ? 'Creating schedule...' : 'Generate schedule'}
+            {generating ? 'Running CSP Solver...' : 'Generate Schedule'}
           </button>
 
           {activeVersion && activeVersion.status === 'draft' && (
             <button
               onClick={handlePublishSchedule}
-              className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/25 transition hover:bg-emerald-500 active:scale-95"
             >
               <Send size={15} />
-              Publish Schedule
+              Publish Schedule v{activeVersion.versionNumber}
             </button>
           )}
-        </div>
+        </div>}
       </div>
+
+      {!activeDrive && <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Select or create an interview drive before generating a schedule.</section>}
+
+      {activeDrive && isCoordinator && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5">
+          <h2 className="font-bold text-amber-950">Schedule generation requirements</h2>
+          <ul className="mt-3 grid gap-2 text-sm text-amber-950 sm:grid-cols-2">
+            <li>• At least one round with its duration and required skills: <a className="font-semibold underline" href="/rounds">Interview rounds</a></li>
+            <li>• At least one active candidate and interviewer: <a className="font-semibold underline" href="/candidates">Candidates</a> · <a className="font-semibold underline" href="/interviewers">Interviewers</a></li>
+            <li>• At least one active room: <a className="font-semibold underline" href="/availability">Rooms & availability</a></li>
+            <li>• Candidate, interviewer, and room availability must be explicit, future, and overlap; all required interviewer skills must match.</li>
+          </ul>
+        </section>
+      )}
+
+      {pastScheduledCount > 0 && (
+        <section role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <strong>{pastScheduledCount} interview{pastScheduledCount === 1 ? ' is' : 's are'} in the past</strong> but still marked scheduled. Treat these as historical entries; add future candidate and interviewer availability before generating a current schedule.
+        </section>
+      )}
+
+      {unassigned.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
+          <div className="border-b border-amber-100 bg-amber-50/70 px-5 py-4">
+            <h2 className="font-bold text-amber-950">Interviews needing a time ({unassigned.length})</h2>
+            <p className="mt-1 text-xs text-amber-800">Each item lists why the scheduler could not safely assign it.</p>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {unassigned.map((item, index) => (
+              <li key={`${item.candidateId}-${item.roundId}-${index}`} className="flex flex-col gap-1 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-sm font-semibold text-slate-800">{item.candidateName} · {item.roundName}</span>
+                <span className="text-xs text-slate-600">{item.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Notices */}
       {bannerNotice && (
@@ -295,7 +349,7 @@ function Schedule() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-indigo-400"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-amber-400"
             >
               <option value="All">All Statuses</option>
               <option value="scheduled">Scheduled</option>
@@ -311,10 +365,14 @@ function Schedule() {
           ) : filteredInterviews.length === 0 ? (
             <div className="py-12 text-center">
               <CalendarDays size={36} className="mx-auto text-slate-300" />
-              <p className="mt-2 text-sm font-semibold text-slate-700">No interviews in this version</p>
-              <p className="mt-0.5 text-xs text-slate-400">
-                Select <strong>Generate schedule</strong> to create interview times from your current availability and room settings.
+              <p className="mt-2 text-sm font-semibold text-slate-700">
+                {isInterviewer ? 'No interviews assigned to you' : 'No interviews in this version'}
               </p>
+              {!isInterviewer && (
+                <p className="mt-0.5 text-xs text-slate-400">
+                  Select <strong>Generate schedule</strong> after adding future candidate, interviewer, and room availability.
+                </p>
+              )}
             </div>
           ) : (
             <table className="w-full min-w-[850px] text-left text-xs">
@@ -359,7 +417,7 @@ function Schedule() {
                             href={item.room?.meetingLink || '#'}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-purple-700 font-semibold hover:underline"
+                            className="inline-flex items-center gap-1 text-teal-700 font-semibold hover:underline"
                           >
                             <Video size={13} />
                             <span>Meet Link</span>
@@ -385,7 +443,7 @@ function Schedule() {
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Download a calendar invite. */}
                           <a
-                            href={`http://localhost:5002/api/v1/interviews/${item._id}/calendar.ics`}
+                            href={`${API_BASE_URL}/interviews/${item._id}/calendar.ics`}
                             download
                             title="Download RFC-5545 .ics Calendar Invite"
                             className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -399,7 +457,7 @@ function Schedule() {
                             target="_blank"
                             rel="noreferrer"
                             title="Add to Google Calendar"
-                            className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 hover:text-indigo-600"
+                            className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 hover:text-amber-600"
                           >
                             <ExternalLink size={14} />
                           </a>
@@ -462,7 +520,7 @@ function Schedule() {
                   value={rescheduleReason}
                   onChange={(e) => setRescheduleReason(e.target.value)}
                   placeholder="e.g. Interviewer urgent cancellation"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-indigo-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-amber-400"
                 />
               </div>
 

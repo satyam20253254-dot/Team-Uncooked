@@ -2,10 +2,16 @@
 import jwt from "jsonwebtoken";
 
 import { User } from "../models/User.model.js";
+import { Drive } from "../models/Drive.model.js";
+import { DriveParticipant } from "../models/DriveParticipant.model.js";
+import { Round } from "../models/Round.model.js";
 
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+
+const COORDINATOR_EMAIL = "coordinator@ancienttrials.edu";
+const COORDINATOR_PASSWORD = "AncientOne#2026";
 
 // Generate JWT
 const generateToken = (userId) => {
@@ -41,11 +47,12 @@ export const registerUser = asyncHandler(async (req, res) => {
         );
     }
 
+    const assignedRole = req.body.role;
+    if (!["candidate", "interviewer"].includes(assignedRole)) {
+        throw new ApiError(400, "Choose candidate or interviewer for registration");
+    }
     const normalizedEmail = email.trim().toLowerCase();
-
-    // Allow optional role (defaults to candidate)
-    const validRoles = ["candidate", "interviewer", "coordinator", "admin"];
-    const assignedRole = validRoles.includes(req.body.role) ? req.body.role : "candidate";
+    if (normalizedEmail === COORDINATOR_EMAIL) throw new ApiError(409, "The coordinator account is reserved");
 
     // Check whether the email is already registered
     const existingUser = await User.findOne({
@@ -63,6 +70,29 @@ export const registerUser = asyncHandler(async (req, res) => {
         password,
         role: assignedRole,
     });
+
+    // Automatically enroll user into active drive so they can immediately book slots & set availability
+    try {
+        const activeDrive = await Drive.findOne({ status: { $ne: "cancelled" } }).sort({ createdAt: -1 });
+        if (activeDrive) {
+            const rounds = await Round.find({ driveId: activeDrive._id }).sort({ sequence: 1 });
+            await DriveParticipant.create({
+                driveId: activeDrive._id,
+                userId: user._id,
+                role: assignedRole,
+                status: "active",
+                eligibleRoundIds: assignedRole === "candidate" ? rounds.map((r) => r._id) : [],
+                metadata: {
+                    department: assignedRole === "interviewer" ? "Engineering & Tech" : "Computer Science",
+                    skills: assignedRole === "interviewer" ? ["DSA", "React", "Node.js", "System Design"] : ["DSA", "React"],
+                    maxDailyInterviews: 4,
+                    registeredAt: new Date().toISOString(),
+                },
+            });
+        }
+    } catch (participantErr) {
+        console.warn("Auto-enrollment warning:", participantErr.message);
+    }
 
     // Never return the password
     const createdUser = user.toObject();
@@ -95,9 +125,23 @@ export const loginUser = asyncHandler(async (req, res) => {
     }
 
     // Password has select: false in the schema
-    const user = await User.findOne({
-        email: email.trim().toLowerCase()
-    }).select("+password");
+    const normalizedEmail = email.trim().toLowerCase();
+    let user = await User.findOne({ email: normalizedEmail }).select("+password");
+    if (normalizedEmail === COORDINATOR_EMAIL) {
+        if (password !== COORDINATOR_PASSWORD) throw new ApiError(401, "Invalid email or password");
+        if (!user) {
+            user = await User.create({ name: "Trials Coordinator", email: COORDINATOR_EMAIL, password: COORDINATOR_PASSWORD, role: "coordinator" });
+            user = await User.findById(user._id).select("+password");
+        } else if (user.role !== "coordinator") {
+            throw new ApiError(403, "The reserved coordinator account is unavailable");
+        } else if (!(await user.comparePassword(COORDINATOR_PASSWORD))) {
+            user.password = COORDINATOR_PASSWORD;
+            await user.save();
+            user = await User.findById(user._id).select("+password");
+        }
+    } else if (user?.role === "coordinator") {
+        throw new ApiError(401, "Use the reserved coordinator account to sign in");
+    }
 
     if (!user) {
         throw new ApiError(401, "Invalid email or password");
@@ -207,4 +251,18 @@ export const getAllUsers = asyncHandler(async (req, res) => {
                 "Users fetched successfully"
             )
         );
+});
+
+// Coordinators can provision drive participants with their correct role.
+export const createParticipantUser = asyncHandler(async (req, res) => {
+    const { name, email, password, role } = req.body;
+    if (!name?.trim() || !email?.trim() || !password || !["candidate", "interviewer"].includes(role)) {
+        throw new ApiError(400, "Name, email, password and a valid participant role are required");
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    if (await User.findOne({ email: normalizedEmail })) throw new ApiError(409, "Email is already registered");
+    const user = await User.create({ name: name.trim(), email: normalizedEmail, password, role });
+    const createdUser = user.toObject();
+    delete createdUser.password;
+    return res.status(201).json(new ApiResponse(201, createdUser, "Participant account created"));
 });

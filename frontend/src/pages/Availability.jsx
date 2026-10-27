@@ -3,7 +3,6 @@ import {
   Plus,
   Search,
   MapPin,
-  Users,
   DoorOpen,
   Clock,
   X,
@@ -12,17 +11,27 @@ import {
   CalendarDays,
   Video,
   Trash2,
-  Sparkles,
 } from 'lucide-react'
 import api from '../services/api'
 import { useDrive } from '../context/DriveContext'
 import { useAuth } from '../context/AuthContext'
 
+function getTomorrowDate() {
+  const date = new Date()
+  date.setDate(date.getDate() + 1)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
 function Availability() {
   const { activeDrive } = useDrive()
   const { role, user } = useAuth()
+  const userId = user?._id
 
   const [rooms, setRooms] = useState([])
+  const [candidateParticipants, setCandidateParticipants] = useState([])
+  const [interviewerParticipants, setInterviewerParticipants] = useState([])
   const [availabilities, setAvailabilities] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -42,11 +51,12 @@ function Availability() {
 
   // Add Availability form state
   const [availForm, setAvailForm] = useState({
-    ownerType: 'interviewer',
-    date: new Date().toISOString().split('T')[0],
+    ownerType: role === 'candidate' ? 'candidate' : role === 'coordinator' || role === 'admin' ? 'room' : 'interviewer',
+    date: getTomorrowDate(),
     startTime: '09:00',
     endTime: '17:00',
     selectedRoomId: '',
+    selectedParticipantId: '',
   })
 
   const fetchData = useCallback(async () => {
@@ -54,22 +64,29 @@ function Availability() {
     setLoading(true)
     setError('')
     try {
-      const [roomsRes, availRes] = await Promise.all([
-        api.get(`/drives/${activeDrive._id}/rooms`),
-        api.get(`/drives/${activeDrive._id}/availabilities`),
+      const canManageRooms = role === 'coordinator' || role === 'admin'
+      const availabilityQuery = canManageRooms ? '' : `?ownerType=${role}&ownerId=${userId}`
+      const [roomsRes, availRes, candidatesRes, interviewersRes] = await Promise.all([
+        canManageRooms ? api.get(`/drives/${activeDrive._id}/rooms`) : Promise.resolve({ data: [] }),
+        api.get(`/drives/${activeDrive._id}/availabilities${availabilityQuery}`),
+        canManageRooms ? api.get(`/drives/${activeDrive._id}/participants?role=candidate`) : Promise.resolve({ data: { participants: [] } }),
+        canManageRooms ? api.get(`/drives/${activeDrive._id}/participants?role=interviewer`) : Promise.resolve({ data: { participants: [] } }),
       ])
 
       setRooms(roomsRes?.data || [])
       setAvailabilities(availRes?.data?.availabilities || [])
+      setCandidateParticipants(candidatesRes?.data?.participants || [])
+      setInterviewerParticipants(interviewersRes?.data?.participants || [])
     } catch (err) {
       console.warn('Could not load rooms or availability:', err)
     } finally {
       setLoading(false)
     }
-  }, [activeDrive])
+  }, [activeDrive, role, userId])
 
   useEffect(() => {
-    fetchData()
+    const timer = setTimeout(fetchData, 0)
+    return () => clearTimeout(timer)
   }, [fetchData])
 
   async function handleAddRoom(e) {
@@ -116,6 +133,7 @@ function Availability() {
     try {
       const startDateTime = new Date(`${availForm.date}T${availForm.startTime}:00`)
       const endDateTime = new Date(`${availForm.date}T${availForm.endTime}:00`)
+      if (startDateTime <= new Date()) throw new Error('Availability must start in the future. Choose a future date or time.')
 
       const payload = {
         ownerType: availForm.ownerType,
@@ -126,6 +144,9 @@ function Availability() {
       if (availForm.ownerType === 'room') {
         if (!availForm.selectedRoomId) throw new Error('Please select a room.')
         payload.ownerId = availForm.selectedRoomId
+      } else if (role === 'coordinator' || role === 'admin') {
+        if (!availForm.selectedParticipantId) throw new Error(`Please select an active ${availForm.ownerType}.`)
+        payload.ownerId = availForm.selectedParticipantId
       }
 
       await api.post(`/drives/${activeDrive._id}/availabilities`, payload)
@@ -160,29 +181,29 @@ function Availability() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">
-            Rooms & Availability Windows
+            {role === 'candidate' ? 'My availability' : role === 'interviewer' ? 'My availability' : 'Rooms & Availability Windows'}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Add interview rooms and set the times when candidates, interviewers, and rooms are available.
+            {role === 'candidate' || role === 'interviewer' ? 'Share the times you can attend so the coordinator can find a feasible interview slot.' : 'Add interview rooms and manage room availability. Candidates and interviewers submit their own availability.'}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowAvailModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition"
           >
             <Clock size={16} />
             Post Availability Window
           </button>
 
-          <button
+          {(role === 'coordinator' || role === 'admin') && <button
             onClick={() => setShowRoomModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-indigo-100 hover:bg-indigo-700"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 transition active:scale-95"
           >
             <Plus size={16} />
             Add Room
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -201,13 +222,15 @@ function Availability() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className={`grid grid-cols-1 gap-4 ${role === 'coordinator' || role === 'admin' ? 'sm:grid-cols-3' : 'sm:grid-cols-1'}`}>
+        {(role === 'coordinator' || role === 'admin') && <>
         <SummaryCard title="Configured Rooms" value={rooms.length} icon={<DoorOpen size={18} />} />
         <SummaryCard
           title="Virtual Meet Links"
           value={rooms.filter((r) => r.isVirtual).length}
           icon={<Video size={18} />}
         />
+        </>}
         <SummaryCard
           title="Active Availability Windows"
           value={availabilities.length}
@@ -216,7 +239,7 @@ function Availability() {
       </div>
 
       {/* Rooms Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+      {(role === 'coordinator' || role === 'admin') && <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-bold text-slate-900">Configured Interview Venues</h2>
@@ -231,7 +254,7 @@ function Availability() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search rooms..."
-              className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs outline-none focus:border-indigo-400 sm:w-60"
+              className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs outline-none focus:border-amber-400 sm:w-60"
             />
           </div>
         </div>
@@ -266,8 +289,8 @@ function Availability() {
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
                           room.isVirtual
-                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                            : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
                         }`}
                       >
                         {room.isVirtual ? 'Virtual Meet' : 'Physical'}
@@ -280,7 +303,7 @@ function Availability() {
                           href={room.meetingLink || '#'}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-purple-700 font-semibold hover:underline flex items-center gap-1"
+                          className="text-teal-700 font-semibold hover:underline flex items-center gap-1"
                         >
                           <Video size={13} />
                           <span className="max-w-[200px] truncate">{room.meetingLink || 'Virtual Meeting'}</span>
@@ -307,7 +330,7 @@ function Availability() {
             </table>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Availability Windows Table */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
@@ -391,7 +414,7 @@ function Availability() {
                   value={roomForm.name}
                   onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })}
                   placeholder="e.g. Conference Room Charlie or Google Meet #1"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                 />
               </div>
 
@@ -401,7 +424,7 @@ function Availability() {
                   id="isVirtual"
                   checked={roomForm.isVirtual}
                   onChange={(e) => setRoomForm({ ...roomForm, isVirtual: e.target.checked })}
-                  className="rounded text-indigo-600"
+                  className="rounded text-amber-600"
                 />
                 <label htmlFor="isVirtual" className="font-semibold text-slate-700">
                   This is an Online / Virtual Meeting Room
@@ -416,7 +439,7 @@ function Availability() {
                     value={roomForm.meetingLink}
                     onChange={(e) => setRoomForm({ ...roomForm, meetingLink: e.target.value })}
                     placeholder="https://meet.google.com/xyz-abc-qrs"
-                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                   />
                 </div>
               ) : (
@@ -428,7 +451,7 @@ function Availability() {
                       value={roomForm.location}
                       onChange={(e) => setRoomForm({ ...roomForm, location: e.target.value })}
                       placeholder="e.g. Academic Block, 3rd Floor"
-                      className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                      className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                     />
                   </div>
                   <div>
@@ -438,7 +461,7 @@ function Availability() {
                       min="1"
                       value={roomForm.capacity}
                       onChange={(e) => setRoomForm({ ...roomForm, capacity: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                      className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                     />
                   </div>
                 </div>
@@ -454,7 +477,7 @@ function Availability() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white hover:bg-indigo-700"
+                  className="rounded-xl bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20"
                 >
                   Save Venue
                 </button>
@@ -481,15 +504,15 @@ function Availability() {
             <form onSubmit={handleAddAvailability} className="space-y-3 text-xs">
               <div>
                 <label className="mb-1 block font-bold text-slate-700 uppercase">Resource Type</label>
-                <select
+                {role === 'coordinator' || role === 'admin' ? <select
                   value={availForm.ownerType}
-                  onChange={(e) => setAvailForm({ ...availForm, ownerType: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-indigo-400"
+                  onChange={(e) => setAvailForm({ ...availForm, ownerType: e.target.value, selectedRoomId: '', selectedParticipantId: '' })}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400"
                 >
-                  <option value="interviewer">Interviewer Panelist</option>
-                  <option value="room">Room Venue</option>
                   <option value="candidate">Candidate</option>
-                </select>
+                  <option value="interviewer">Interviewer</option>
+                  <option value="room">Room Venue</option>
+                </select> : <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 font-semibold capitalize text-slate-700">My {role} availability</div>}
               </div>
 
               {availForm.ownerType === 'room' && (
@@ -499,7 +522,7 @@ function Availability() {
                     required
                     value={availForm.selectedRoomId}
                     onChange={(e) => setAvailForm({ ...availForm, selectedRoomId: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-indigo-400"
+                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400"
                   >
                     <option value="">Select a room</option>
                     {rooms.map((r) => (
@@ -511,6 +534,16 @@ function Availability() {
                 </div>
               )}
 
+              {(role === 'coordinator' || role === 'admin') && availForm.ownerType !== 'room' && (
+                <div>
+                  <label className="mb-1 block font-bold text-slate-700 uppercase">Select {availForm.ownerType}</label>
+                  <select required value={availForm.selectedParticipantId} onChange={(e) => setAvailForm({ ...availForm, selectedParticipantId: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400">
+                    <option value="">Choose an active {availForm.ownerType}</option>
+                    {(availForm.ownerType === 'candidate' ? candidateParticipants : interviewerParticipants).filter((participant) => participant.status === 'active' && participant.userId?._id).map((participant) => <option key={participant._id} value={participant.userId._id}>{participant.userId.name} · {participant.userId.email}</option>)}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="mb-1 block font-bold text-slate-700 uppercase">Date</label>
                 <input
@@ -518,7 +551,7 @@ function Availability() {
                   type="date"
                   value={availForm.date}
                   onChange={(e) => setAvailForm({ ...availForm, date: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                 />
               </div>
 
@@ -530,7 +563,7 @@ function Availability() {
                     type="time"
                     value={availForm.startTime}
                     onChange={(e) => setAvailForm({ ...availForm, startTime: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                   />
                 </div>
                 <div>
@@ -540,7 +573,7 @@ function Availability() {
                     type="time"
                     value={availForm.endTime}
                     onChange={(e) => setAvailForm({ ...availForm, endTime: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                   />
                 </div>
               </div>
@@ -555,7 +588,7 @@ function Availability() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white hover:bg-indigo-700"
+                  className="rounded-xl bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20"
                 >
                   Post Window
                 </button>
@@ -573,7 +606,7 @@ function SummaryCard({ title, value, icon }) {
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase text-slate-400">{title}</p>
-        <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600">{icon}</div>
+        <div className="rounded-xl bg-amber-50 p-2 text-amber-600">{icon}</div>
       </div>
       <p className="mt-3 text-2xl font-black text-slate-900">{value}</p>
     </div>

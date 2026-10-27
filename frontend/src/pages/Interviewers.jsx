@@ -3,22 +3,18 @@ import {
   UserRoundCheck,
   Search,
   Plus,
-  Mail,
   BriefcaseBusiness,
   Clock,
   X,
   Trash2,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
 } from 'lucide-react'
 import api from '../services/api'
 import { useDrive } from '../context/DriveContext'
-import { useAuth } from '../context/AuthContext'
 
 function Interviewers() {
-  const { activeDrive, rounds } = useDrive()
-  const { role } = useAuth()
+  const { activeDrive } = useDrive()
 
   const [interviewers, setInterviewers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -26,10 +22,12 @@ function Interviewers() {
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     department: 'Engineering & Tech',
     skills: 'DSA, System Design, React, Node.js',
     maxDailyInterviews: 4,
@@ -51,7 +49,8 @@ function Interviewers() {
   }, [activeDrive])
 
   useEffect(() => {
-    fetchInterviewers()
+    const timer = setTimeout(fetchInterviewers, 0)
+    return () => clearTimeout(timer)
   }, [fetchInterviewers])
 
   function handleChange(event) {
@@ -67,26 +66,34 @@ function Interviewers() {
     if (!activeDrive?._id) return
     setError('')
     setSuccess('')
+    const email = formData.email.trim().toLowerCase()
+    if (interviewers.some((item) => item.userId?.email?.toLowerCase() === email)) {
+      setError('This interviewer is already a participant in the selected drive.')
+      return
+    }
+    setIsSubmitting(true)
 
     try {
       // 1. Ensure user account exists
       let userId
       try {
-        const userRes = await api.post('/auth/register', {
+        const userRes = await api.post('/auth/users', {
           name: formData.name.trim(),
           email: formData.email.trim(),
-          password: 'Password123!',
+          password: formData.password,
           role: 'interviewer',
         })
         userId = userRes?.data?._id
-      } catch (userErr) {
+      } catch (createError) {
+        if (!createError.message.toLowerCase().includes('already registered')) throw createError
         // Search if already registered
-        const searchRes = await api.get(`/auth/users?search=${encodeURIComponent(formData.email.trim())}`)
+        const searchRes = await api.get(`/auth/users?search=${encodeURIComponent(email)}`)
         const existing = searchRes?.data?.users?.[0]
         if (existing) {
+          if (existing.role !== 'interviewer') throw new Error('This email belongs to an account with a different role.', { cause: createError })
           userId = existing._id
         } else {
-          throw new Error('Email already registered but could not retrieve account.')
+          throw new Error('Email already registered but could not retrieve account.', { cause: createError })
         }
       }
 
@@ -111,6 +118,7 @@ function Interviewers() {
       setFormData({
         name: '',
         email: '',
+        password: '',
         department: 'Engineering & Tech',
         skills: 'DSA, System Design, React, Node.js',
         maxDailyInterviews: 4,
@@ -118,7 +126,10 @@ function Interviewers() {
       setShowForm(false)
       fetchInterviewers()
     } catch (err) {
+      setSuccess('')
       setError(err.message || 'Failed to add interviewer panelist.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -157,7 +168,7 @@ function Interviewers() {
 
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-indigo-100 hover:bg-indigo-700"
+          className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 active:scale-95"
         >
           <Plus size={16} />
           Add Interviewer Panel
@@ -171,7 +182,7 @@ function Interviewers() {
         </div>
       )}
 
-      {success && (
+      {success && !error && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-medium text-emerald-800">
           <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
           <span>{success}</span>
@@ -314,7 +325,7 @@ function Interviewers() {
                   onChange={handleChange}
                   required
                   placeholder="e.g. Rahul Verma"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                 />
               </div>
 
@@ -327,8 +338,13 @@ function Interviewers() {
                   onChange={handleChange}
                   required
                   placeholder="rahul.verma@apex.corp"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                 />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold text-slate-700 uppercase">Temporary Password</label>
+                <input name="password" type="password" minLength={8} value={formData.password} onChange={handleChange} required autoComplete="new-password" className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400" />
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -338,7 +354,7 @@ function Interviewers() {
                     name="department"
                     value={formData.department}
                     onChange={handleChange}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-indigo-400"
+                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400"
                   >
                     <option value="Engineering & Tech">Engineering & Tech</option>
                     <option value="Product & Design">Product & Design</option>
@@ -356,7 +372,7 @@ function Interviewers() {
                     max="10"
                     value={formData.maxDailyInterviews}
                     onChange={handleChange}
-                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                   />
                 </div>
               </div>
@@ -370,7 +386,7 @@ function Interviewers() {
                   value={formData.skills}
                   onChange={handleChange}
                   placeholder="DSA, React, System Design, Node.js"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                 />
                 <p className="mt-1 text-[10px] text-slate-400">
                   Used to match interviewers with the requirements for each round.
@@ -387,9 +403,10 @@ function Interviewers() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white hover:bg-indigo-700"
+                  disabled={isSubmitting}
+                  className="rounded-xl bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20"
                 >
-                  Register Panelist
+                  {isSubmitting ? 'Adding…' : 'Register Panelist'}
                 </button>
               </div>
             </form>

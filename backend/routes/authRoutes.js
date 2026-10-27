@@ -7,6 +7,7 @@ import {
   logoutUser,
   getCurrentUser,
   getAllUsers,
+  createParticipantUser,
 } from "../controllers/authController.js";
 
 import { verifyJWT } from "../middleware/auth.middleware.js";
@@ -25,6 +26,8 @@ router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/me").get(verifyJWT, getCurrentUser);
 
 // Coordinator/Admin user discovery (for adding interviewers & candidates to drives)
-router.route("/users").get(verifyJWT, authorizeRoles("admin", "coordinator"), getAllUsers);
+router.route("/users")
+  .get(verifyJWT, authorizeRoles("admin", "coordinator"), getAllUsers)
+  .post(verifyJWT, authorizeRoles("admin", "coordinator"), createParticipantUser);
 
 export default router;

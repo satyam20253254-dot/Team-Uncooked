@@ -5,6 +5,7 @@ import { Availability } from "../models/Availability.model.js";
 import { Drive } from "../models/Drive.model.js";
 import { Room } from "../models/Room.model.js";
 import { DriveParticipant } from "../models/DriveParticipant.model.js";
+import { Round } from "../models/Round.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -48,6 +49,10 @@ export const setAvailability = asyncHandler(async (req, res) => {
     );
   }
 
+  if (start <= new Date()) {
+    throw new ApiError(400, "Availability must start in the future");
+  }
+
   // Ensure the user is authenticated
   if (!req.user?._id) {
     throw new ApiError(401, "Authentication required");
@@ -86,6 +91,13 @@ export const setAvailability = asyncHandler(async (req, res) => {
   } else {
     // Candidates and interviewers can only set their own availability unless coordinator/admin
     if (
+      !["admin", "coordinator"].includes(req.user.role) &&
+      ownerType !== req.user.role
+    ) {
+      throw new ApiError(403, "You can only set availability for your own role");
+    }
+
+    if (
       ownerId &&
       String(ownerId) !== String(req.user._id) &&
       !["admin", "coordinator"].includes(req.user.role)
@@ -99,18 +111,34 @@ export const setAvailability = asyncHandler(async (req, res) => {
     actualOwnerId = ownerId && ["admin", "coordinator"].includes(req.user.role) ? ownerId : req.user._id;
     ownerModel = "User";
 
-    // Verify user is an active participant in this drive
-    const isParticipant = await DriveParticipant.exists({
+    // Verify user is an active participant in this drive, or auto-enroll them
+    let isParticipant = await DriveParticipant.exists({
       driveId,
       userId: actualOwnerId,
+      role: ownerType,
       status: "active",
     });
 
     if (!isParticipant) {
-      throw new ApiError(
-        400,
-        "User is not registered as an active participant in this drive"
-      );
+      try {
+        const rounds = await Round.find({ driveId }).sort({ sequence: 1 });
+        await DriveParticipant.create({
+          driveId,
+          userId: actualOwnerId,
+          role: ownerType,
+          status: "active",
+          eligibleRoundIds: ownerType === "candidate" ? rounds.map((r) => r._id) : [],
+          metadata: {
+            department: ownerType === "interviewer" ? "Engineering & Tech" : "Computer Science",
+            skills: ownerType === "interviewer" ? ["DSA", "React", "Node.js", "System Design"] : ["DSA", "React"],
+            maxDailyInterviews: 4,
+            registeredAt: new Date().toISOString(),
+          },
+        });
+        isParticipant = true;
+      } catch (enrollErr) {
+        console.warn("Participant auto-enroll on availability notice:", enrollErr.message);
+      }
     }
   }
 
@@ -159,13 +187,22 @@ export const getDriveAvailabilities = asyncHandler(
     }
 
     const query = { drive: driveId };
+    const isStaff = ["admin", "coordinator"].includes(req.user?.role);
+
+    if (!isStaff) {
+      if (!["candidate", "interviewer"].includes(req.user?.role)) {
+        throw new ApiError(403, "You are not authorized to view availability");
+      }
+      query.ownerType = req.user.role;
+      query.ownerId = req.user._id;
+    }
 
     if (ownerType) {
       if (!["candidate", "interviewer", "room"].includes(ownerType)) {
         throw new ApiError(400, "Invalid owner type");
       }
 
-      query.ownerType = ownerType;
+      if (isStaff) query.ownerType = ownerType;
     }
 
     if (ownerId) {
@@ -173,7 +210,7 @@ export const getDriveAvailabilities = asyncHandler(
         throw new ApiError(400, "Invalid owner ID");
       }
 
-      query.ownerId = ownerId;
+      if (isStaff) query.ownerId = ownerId;
     }
 
     const availabilities = await Availability.find(query)

@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import { API_BASE_URL } from '../services/api'
 import {
     ChevronLeft,
     ChevronRight,
@@ -86,18 +87,18 @@ function getInterviewColor(interview) {
     }
 
     if (round.includes('manager')) {
-        return 'border-violet-200 bg-violet-50 text-violet-800'
+        return 'border-teal-200 bg-teal-50 text-teal-800'
     }
 
     if (round.includes('coding')) {
         return 'border-rose-200 bg-rose-50 text-rose-800'
     }
 
-    return 'border-indigo-200 bg-indigo-50 text-indigo-800'
+    return 'border-amber-200 bg-amber-50 text-amber-800'
 }
 
 function WeeklyCalendar({ interviews = [] }) {
-    const [weekOffset, setWeekOffset] = useState(1)
+    const [weekOffset, setWeekOffset] = useState(0)
     const [selectedInterview, setSelectedInterview] = useState(null)
 
     const monday = getMonday(new Date())
@@ -135,7 +136,7 @@ function WeeklyCalendar({ interviews = [] }) {
             {/* Header */}
             <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
+                    <div className="rounded-xl bg-amber-50 p-2.5 text-amber-600">
                         <CalendarDays size={21} />
                     </div>
 
@@ -198,7 +199,7 @@ function WeeklyCalendar({ interviews = [] }) {
 
                                     <p
                                         className={`mx-auto mt-1 flex size-8 items-center justify-center rounded-full text-sm font-semibold ${isToday
-                                            ? 'bg-indigo-600 text-white'
+                                            ? 'bg-amber-600 text-white'
                                             : 'text-slate-800'
                                             }`}
                                     >
@@ -264,9 +265,9 @@ function WeeklyCalendar({ interviews = [] }) {
 
             {/* Legend */}
             <div className="flex flex-wrap gap-4 border-t border-slate-100 px-5 py-4">
-                <Legend color="bg-indigo-400" label="Technical" />
+                <Legend color="bg-amber-400" label="Technical" />
                 <Legend color="bg-emerald-400" label="HR" />
-                <Legend color="bg-violet-400" label="Managerial" />
+                <Legend color="bg-teal-400" label="Managerial" />
                 <Legend color="bg-amber-400" label="Unassigned" />
             </div>
 
@@ -275,7 +276,7 @@ function WeeklyCalendar({ interviews = [] }) {
                 <div className="border-t border-slate-200 bg-slate-50 p-5">
                     <div className="flex items-start justify-between gap-4">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">
                                 Interview Details
                             </p>
 
@@ -304,9 +305,9 @@ function WeeklyCalendar({ interviews = [] }) {
                             {selectedInterview.id && (
                                 <div className="mt-3">
                                     <a
-                                        href={`http://localhost:5002/api/v1/interviews/${selectedInterview.id}/calendar.ics`}
+                                        href={`${API_BASE_URL}/interviews/${selectedInterview.id}/calendar.ics`}
                                         download
-                                        className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
+                                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
                                     >
                                         <Download size={13} />
                                         Download .ics Calendar Invite
