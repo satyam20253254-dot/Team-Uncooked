@@ -8,6 +8,7 @@ import { Interview } from "../models/Interview.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { notifyDriveEvent } from "../utils/notifications.js";
 
 // --- ROUNDS ---
 
@@ -72,6 +73,10 @@ export const createRound = asyncHandler(async (req, res) => {
         "All prerequisite rounds must belong to this drive"
       );
     }
+
+    if (matchingRounds.some((round) => round.sequence >= Number(sequence))) {
+      throw new ApiError(400, "Prerequisite rounds must come earlier in the sequence");
+    }
   }
 
   const skills = Array.isArray(requiredSkills)
@@ -99,6 +104,16 @@ export const createRound = asyncHandler(async (req, res) => {
     }
     throw error;
   }
+
+  await notifyDriveEvent({
+    driveId,
+    type: "round_created",
+    title: "Interview round added",
+    message: `${round.name} was added to the interview process.`,
+    entityType: "round",
+    entityId: round._id,
+    includeDriveParticipants: true,
+  });
 
   return res
     .status(201)
@@ -213,6 +228,8 @@ export const updateRound = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Round not found for this drive");
   }
 
+  const nextSequence = sequence == null ? round.sequence : Number(sequence);
+
   if (name?.trim()) round.name = name.trim();
   if (sequence != null) {
     const seqNum = Number(sequence);
@@ -246,8 +263,25 @@ export const updateRound = asyncHandler(async (req, res) => {
       if (matchingRounds.length !== new Set(prerequisiteRound.map(String)).size) {
         throw new ApiError(400, "All prerequisite rounds must belong to this drive");
       }
+      if (matchingRounds.some((item) => item.sequence >= nextSequence)) {
+        throw new ApiError(400, "Prerequisite rounds must come earlier in the sequence");
+      }
     }
     round.prerequisiteRound = prerequisiteRound;
+  } else if (prerequisiteRound !== undefined) {
+    throw new ApiError(400, "prerequisiteRound must be an array");
+  }
+
+  if (sequence != null) {
+    const dependentRound = await Round.findOne({
+      driveId,
+      prerequisiteRound: roundId,
+      sequence: { $lte: nextSequence },
+      _id: { $ne: roundId },
+    });
+    if (dependentRound) {
+      throw new ApiError(400, `This round must stay before ${dependentRound.name} because it is a prerequisite`);
+    }
   }
 
   if (Array.isArray(requiredSkills)) {
@@ -268,6 +302,16 @@ export const updateRound = asyncHandler(async (req, res) => {
     }
     throw error;
   }
+
+  await notifyDriveEvent({
+    driveId,
+    type: "round_updated",
+    title: "Interview round updated",
+    message: `${round.name} details or prerequisites were updated.`,
+    entityType: "round",
+    entityId: round._id,
+    includeDriveParticipants: true,
+  });
 
   return res
     .status(200)
@@ -290,10 +334,25 @@ export const deleteRound = asyncHandler(async (req, res) => {
     );
   }
 
+  const dependentRound = await Round.findOne({ driveId, prerequisiteRound: roundId }).select("name");
+  if (dependentRound) {
+    throw new ApiError(400, `Remove ${dependentRound.name}'s prerequisite link before deleting this round`);
+  }
+
   const round = await Round.findOneAndDelete({ _id: roundId, driveId });
   if (!round) {
     throw new ApiError(404, "Round not found for this drive");
   }
+
+  await notifyDriveEvent({
+    driveId,
+    type: "round_deleted",
+    title: "Interview round removed",
+    message: `${round.name} was removed from the interview process.`,
+    entityType: "round",
+    entityId: round._id,
+    includeDriveParticipants: true,
+  });
 
   return res
     .status(200)

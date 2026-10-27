@@ -41,6 +41,24 @@ const scheduleVersionSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+
+    unassignedInterviews: [
+      {
+        candidateId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        candidateName: { type: String, trim: true, default: "Candidate" },
+        roundId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Round",
+          required: true,
+        },
+        roundName: { type: String, trim: true, default: "Interview round" },
+        reason: { type: String, trim: true, required: true },
+      },
+    ],
   },
   {
     timestamps: true,

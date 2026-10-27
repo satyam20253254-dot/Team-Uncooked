@@ -1,96 +1,61 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../services/api'
 
 const AuthContext = createContext(null)
 
-export const DEFAULT_USERS = {
-  coordinator: {
-    email: 'coordinator@uncooked.edu',
-    password: 'Password123!',
-    name: 'Dr. Sarah Jenkins',
-    role: 'coordinator',
-  },
-  interviewer: {
-    email: 'interviewer@uncooked.edu',
-    password: 'Password123!',
-    name: 'Rahul Verma',
-    role: 'interviewer',
-  },
-  candidate: {
-    email: 'candidate@uncooked.edu',
-    password: 'Password123!',
-    name: 'Aarav Sharma',
-    role: 'candidate',
-  },
-}
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [role, setRole] = useState(localStorage.getItem('uncooked_role') || 'coordinator')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem('uncooked_token')))
 
-  // Quick switch role for testing all 3 PS personas
-  const switchRole = useCallback(async (targetRole) => {
-    setLoading(true)
-    try {
-      const creds = DEFAULT_USERS[targetRole] || DEFAULT_USERS.coordinator
-      // Try login first
-      let res
-      try {
-        res = await api.post('/auth/login', {
-          email: creds.email,
-          password: creds.password,
-        })
-      } catch (loginErr) {
-        // If user does not exist, auto-register
-        try {
-          res = await api.post('/auth/register', creds)
-          // After register, login to get JWT
-          res = await api.post('/auth/login', {
-            email: creds.email,
-            password: creds.password,
-          })
-        } catch (regErr) {
-          console.warn('Auto-register fallback:', regErr)
-        }
-      }
-
-      if (res?.data?.token) {
-        localStorage.setItem('uncooked_token', res.data.token)
-        localStorage.setItem('uncooked_role', targetRole)
-        setUser(res.data.user)
-        setRole(targetRole)
-      } else {
-        // Local fallback persona if backend auth fails
-        setUser({ name: creds.name, email: creds.email, role: targetRole, _id: targetRole + '_demo' })
-        setRole(targetRole)
-        localStorage.setItem('uncooked_role', targetRole)
-      }
-    } catch (err) {
-      console.error('Failed to switch persona:', err)
-      setRole(targetRole)
-    } finally {
-      setLoading(false)
-    }
+  const acceptSession = useCallback((session) => {
+    const nextUser = session?.data?.user
+    const token = session?.data?.token
+    if (!nextUser || !token) throw new Error('The server returned an invalid sign-in response.')
+    localStorage.setItem('uncooked_token', token)
+    setUser(nextUser)
+    return nextUser
   }, [])
 
-  // Initialize on mount
-  useEffect(() => {
-    const savedRole = localStorage.getItem('uncooked_role') || 'coordinator'
-    switchRole(savedRole)
-  }, [switchRole])
+  const signIn = useCallback(async (credentials, expectedRole) => {
+    const session = await api.post('/auth/login', credentials)
+    const actualRole = session?.data?.user?.role
+    const roleMatches = expectedRole === 'coordinator' ? ['coordinator', 'admin'].includes(actualRole) : actualRole === expectedRole
+    if (expectedRole && !roleMatches) {
+      throw new Error(`This account is registered as ${actualRole || 'another role'}. Choose the matching role to sign in.`)
+    }
+    return acceptSession(session)
+  }, [acceptSession])
 
-  return (
-    <AuthContext.Provider value={{ user, role, switchRole, loading }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  const signUp = useCallback(async (details) => {
+    await api.post('/auth/register', details)
+    return signIn({ email: details.email, password: details.password }, details.role)
+  }, [signIn])
+
+  const signOut = useCallback(async () => {
+    try { await api.post('/auth/logout') } catch (error) { console.warn('Sign-out request failed:', error) }
+    localStorage.removeItem('uncooked_token')
+    setUser(null)
+  }, [])
+
+  useEffect(() => {
+    const token = localStorage.getItem('uncooked_token')
+    if (!token) return
+    api.get('/auth/me')
+      .then((response) => setUser(response?.data || null))
+      .catch(() => {
+        localStorage.removeItem('uncooked_token')
+        setUser(null)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  const role = user?.role || null
+  return <AuthContext.Provider value={{ user, role, signIn, signUp, signOut, loading }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider')
   return context
 }

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../services/api'
 import { useAuth } from './AuthContext'
@@ -37,74 +38,6 @@ export function DriveProvider({ children }) {
           const match = driveList.find((d) => d._id === prev?._id)
           return match || driveList[0]
         })
-      } else {
-        // Automatically bootstrap a default drive if none exists
-        try {
-          const now = new Date()
-          const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-
-          const newDriveRes = await api.post('/drives', {
-            name: 'Autumn Campus Placement Drive 2026',
-            companyName: 'Apex Innovations & Tech Corp',
-            startDate: now.toISOString(),
-            endDate: nextWeek.toISOString(),
-            dailyStartTime: '09:00',
-            dailyEndTime: '17:00',
-            timeZone: 'Asia/Kolkata',
-          })
-
-          const createdDrive = newDriveRes?.data
-          if (createdDrive) {
-            setDrives([createdDrive])
-            setActiveDrive(createdDrive)
-
-            // Seed 3 standard rounds: Coding/Technical 1, Technical 2, HR Round
-            await api.post(`/drives/${createdDrive._id}/rounds`, {
-              name: 'Technical Round 1',
-              sequence: 1,
-              durationMinutes: 45,
-              requiredSkills: ['DSA', 'React', 'JavaScript'],
-              isRequired: true,
-              description: 'Core Data Structures, Algorithms and Frontend Concepts',
-            }).catch(() => {})
-
-            await api.post(`/drives/${createdDrive._id}/rounds`, {
-              name: 'Technical Round 2',
-              sequence: 2,
-              durationMinutes: 60,
-              requiredSkills: ['System Design', 'Node.js', 'Databases'],
-              isRequired: true,
-              description: 'Architecture, Database Design and Problem Solving',
-            }).catch(() => {})
-
-            await api.post(`/drives/${createdDrive._id}/rounds`, {
-              name: 'HR & Culture Round',
-              sequence: 3,
-              durationMinutes: 30,
-              requiredSkills: ['Communication', 'Culture Fit'],
-              isRequired: true,
-              description: 'Values, Culture Alignment, and Compensation Discussion',
-            }).catch(() => {})
-
-            // Seed sample rooms
-            await api.post(`/drives/${createdDrive._id}/rooms`, {
-              name: 'Conference Room Alpha',
-              location: 'Academic Block A, 2nd Floor',
-              capacity: 4,
-              isVirtual: false,
-            }).catch(() => {})
-
-            await api.post(`/drives/${createdDrive._id}/rooms`, {
-              name: 'Virtual Room Beta (Google Meet)',
-              location: 'Online',
-              capacity: 10,
-              isVirtual: true,
-              meetingLink: 'https://meet.google.com/unc-kook-rec',
-            }).catch(() => {})
-          }
-        } catch (seedErr) {
-          console.warn('Auto-seed drive fallback:', seedErr)
-        }
       }
     } catch (err) {
       console.warn('Could not fetch drives:', err)

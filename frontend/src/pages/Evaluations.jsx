@@ -3,24 +3,15 @@ import {
   Award,
   Star,
   CheckCircle2,
-  XCircle,
-  Clock,
-  Sparkles,
   Search,
-  Filter,
-  AlertCircle,
-  FileText,
-  UserCheck,
   TrendingUp,
   X,
 } from 'lucide-react'
 import api from '../services/api'
 import { useDrive } from '../context/DriveContext'
-import { useAuth } from '../context/AuthContext'
 
 function Evaluations() {
   const { activeDrive } = useDrive()
-  const { role, user } = useAuth()
 
   const [rankings, setRankings] = useState([])
   const [interviewsToEvaluate, setInterviewsToEvaluate] = useState([])
@@ -65,8 +56,11 @@ function Evaluations() {
   }, [])
 
   useEffect(() => {
-    fetchRankings()
-    fetchPendingInterviews()
+    const timer = setTimeout(() => {
+      fetchRankings()
+      fetchPendingInterviews()
+    }, 0)
+    return () => clearTimeout(timer)
   }, [fetchRankings, fetchPendingInterviews])
 
   const handleOpenEvaluationModal = (interview) => {
@@ -107,7 +101,7 @@ function Evaluations() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700 uppercase">
+            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 uppercase">
               Interview feedback
             </span>
           </div>
@@ -149,7 +143,7 @@ function Evaluations() {
               {interviewsToEvaluate.map((interview) => (
                 <div
                   key={interview._id}
-                  className="flex flex-col justify-between rounded-xl border border-slate-200 p-4 transition hover:border-indigo-300 hover:shadow-sm"
+                  className="flex flex-col justify-between rounded-xl border border-slate-200 p-4 transition hover:border-amber-300 hover:shadow-sm"
                 >
                   <div>
                     <div className="flex items-center justify-between">
@@ -177,7 +171,7 @@ function Evaluations() {
 
                   <button
                     onClick={() => handleOpenEvaluationModal(interview)}
-                    className="mt-4 flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 active:scale-[0.98]"
+                    className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 active:scale-[0.98]"
                   >
                     <Star size={14} />
                     <span>{interview.status === 'completed' ? 'Update Scorecard' : 'Score Candidate'}</span>
@@ -205,7 +199,7 @@ function Evaluations() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search candidate name or email..."
-              className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs outline-none focus:border-indigo-400 sm:w-64"
+              className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs outline-none focus:border-amber-400 sm:w-64"
             />
           </div>
         </div>
@@ -253,7 +247,7 @@ function Evaluations() {
                       </td>
                       <td className="py-3.5 px-3">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-extrabold text-sm text-indigo-700">{avg}</span>
+                          <span className="font-extrabold text-sm text-amber-700">{avg}</span>
                           <span className="text-[11px] text-slate-400">/ 10</span>
                           <div className="flex text-amber-400">
                             {'★'.repeat(Math.min(5, Math.round(avg / 2)))}
@@ -267,7 +261,7 @@ function Evaluations() {
                               ? 'bg-rose-50 text-rose-700 border border-rose-200'
                               : hasHire
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
                           }`}
                         >
                           {hasReject ? 'Disqualified' : hasHire ? 'Selected / Hire' : 'In Progress'}
@@ -319,7 +313,7 @@ function Evaluations() {
               <div className="py-6 text-center space-y-3">
                 <CheckCircle2 size={44} className="mx-auto text-emerald-600" />
                 <h4 className="font-bold text-slate-900 text-base">Evaluation saved</h4>
-                <p className="text-sm font-semibold text-indigo-700">{pipelineNotice}</p>
+                <p className="text-sm font-semibold text-amber-700">{pipelineNotice}</p>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
                   The candidate record and rankings have been updated.
                 </p>
@@ -335,7 +329,7 @@ function Evaluations() {
                 {/* 1-10 Rating Selector */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase">
-                    Rating Score: <span className="text-indigo-600 text-sm">{evaluationForm.rating} / 10</span>
+                    Rating Score: <span className="text-amber-600 text-sm">{evaluationForm.rating} / 10</span>
                   </label>
                   <div className="mt-2 flex items-center gap-1">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
@@ -345,7 +339,7 @@ function Evaluations() {
                         onClick={() => setEvaluationForm({ ...evaluationForm, rating: score })}
                         className={`flex-1 rounded-lg py-2 text-xs font-bold transition ${
                           evaluationForm.rating === score
-                            ? 'bg-indigo-600 text-white shadow-sm'
+                            ? 'bg-emerald-600 text-white shadow-sm'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
@@ -363,7 +357,7 @@ function Evaluations() {
                   <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {[
                       { id: 'hire', label: 'Hire', color: 'emerald' },
-                      { id: 'next_round', label: 'Next Round', color: 'indigo' },
+                      { id: 'next_round', label: 'Next Round', color: 'amber' },
                       { id: 'hold', label: 'Hold', color: 'amber' },
                       { id: 'reject', label: 'Reject', color: 'rose' },
                     ].map((opt) => (
@@ -373,7 +367,7 @@ function Evaluations() {
                         onClick={() => setEvaluationForm({ ...evaluationForm, recommendation: opt.id })}
                         className={`rounded-xl border py-2 text-xs font-semibold transition ${
                           evaluationForm.recommendation === opt.id
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-bold'
+                            ? 'border-amber-600 bg-amber-50 text-amber-700 font-bold'
                             : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                         }`}
                       >
@@ -394,7 +388,7 @@ function Evaluations() {
                     value={evaluationForm.feedback}
                     onChange={(e) => setEvaluationForm({ ...evaluationForm, feedback: e.target.value })}
                     placeholder="Candidate demonstrated strong algorithmic problem solving, clean recursion, but needs more system design depth..."
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 p-3 text-xs outline-none focus:border-indigo-400"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 p-3 text-xs outline-none focus:border-amber-400"
                   />
                 </div>
 
@@ -409,7 +403,7 @@ function Evaluations() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 disabled:opacity-50"
                   >
                     {submitting ? 'Saving evaluation...' : 'Save evaluation'}
                   </button>

@@ -10,6 +10,7 @@ import availabilityRoutes from "./routes/availabilityRoutes.js";
 import schedulingRoutes from "./routes/schedulingRoutes.js";
 import evaluationRoutes from "./routes/evaluationRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 import { getMyInterviews, getInterviewsByVersion } from "./controllers/schedulingController.js";
 import { verifyJWT } from "./middleware/auth.middleware.js";
 
@@ -67,6 +68,7 @@ app.use("/api/v1/drives", availabilityRoutes);
 app.use("/api/v1/drives", schedulingRoutes);
 app.use("/api/v1/drives", evaluationRoutes);
 app.use("/api/v1/interviews", interviewRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 // Top-level convenience aliases
 app.get("/api/v1/my-interviews", verifyJWT, getMyInterviews);

@@ -41,12 +41,14 @@ router.delete(
 router.get(
   "/:driveId/schedules",
   verifyJWT,
+  authorizeRoles("admin", "coordinator"),
   getScheduleVersions
 );
 
 router.get(
   "/:driveId/schedules/:versionId/interviews",
   verifyJWT,
+  authorizeRoles("admin", "coordinator"),
   getInterviewsByVersion
 );
 
@@ -60,6 +62,7 @@ router.get(
 router.post(
   "/:driveId/rounds/:roundId/self-book",
   verifyJWT,
+  authorizeRoles("candidate"),
   selfBookSlot
 );
 

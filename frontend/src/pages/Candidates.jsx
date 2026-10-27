@@ -3,21 +3,17 @@ import {
   Users,
   Search,
   Plus,
-  Mail,
   GraduationCap,
   X,
   CheckCircle2,
   AlertCircle,
   Trash2,
-  Sparkles,
 } from 'lucide-react'
 import api from '../services/api'
 import { useDrive } from '../context/DriveContext'
-import { useAuth } from '../context/AuthContext'
 
 function Candidates() {
   const { activeDrive, rounds } = useDrive()
-  const { role } = useAuth()
 
   const [candidates, setCandidates] = useState([])
   const [loading, setLoading] = useState(true)
@@ -25,10 +21,12 @@ function Candidates() {
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     department: 'Computer Science',
     skills: 'DSA, React, Python',
   })
@@ -49,7 +47,8 @@ function Candidates() {
   }, [activeDrive])
 
   useEffect(() => {
-    fetchCandidates()
+    const timer = setTimeout(fetchCandidates, 0)
+    return () => clearTimeout(timer)
   }, [fetchCandidates])
 
   function handleChange(event) {
@@ -65,26 +64,34 @@ function Candidates() {
     if (!activeDrive?._id) return
     setError('')
     setSuccess('')
+    const email = formData.email.trim().toLowerCase()
+    if (candidates.some((item) => item.userId?.email?.toLowerCase() === email)) {
+      setError('This candidate is already a participant in the selected drive.')
+      return
+    }
+    setIsSubmitting(true)
 
     try {
       // 1. Ensure user account exists
       let userId
       try {
-        const userRes = await api.post('/auth/register', {
+        const userRes = await api.post('/auth/users', {
           name: formData.name.trim(),
           email: formData.email.trim(),
-          password: 'Password123!',
+          password: formData.password,
           role: 'candidate',
         })
         userId = userRes?.data?._id
-      } catch (userErr) {
+      } catch (createError) {
+        if (!createError.message.toLowerCase().includes('already registered')) throw createError
         // If email already registered, search for user
-        const searchRes = await api.get(`/auth/users?search=${encodeURIComponent(formData.email.trim())}`)
+        const searchRes = await api.get(`/auth/users?search=${encodeURIComponent(email)}`)
         const existing = searchRes?.data?.users?.[0]
         if (existing) {
+          if (existing.role !== 'candidate') throw new Error('This email belongs to an account with a different role.', { cause: createError })
           userId = existing._id
         } else {
-          throw new Error('Email already registered but could not retrieve account.')
+          throw new Error('Email already registered but could not retrieve account.', { cause: createError })
         }
       }
 
@@ -109,11 +116,14 @@ function Candidates() {
       })
 
       setSuccess(`Candidate ${formData.name} successfully registered in this drive!`)
-      setFormData({ name: '', email: '', department: 'Computer Science', skills: 'DSA, React, Python' })
+      setFormData({ name: '', email: '', password: '', department: 'Computer Science', skills: 'DSA, React, Python' })
       setShowForm(false)
       fetchCandidates()
     } catch (err) {
+      setSuccess('')
       setError(err.message || 'Failed to add candidate.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -164,7 +174,7 @@ function Candidates() {
 
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-indigo-100 hover:bg-indigo-700"
+          className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 active:scale-95"
         >
           <Plus size={16} />
           Register Candidate
@@ -178,7 +188,7 @@ function Candidates() {
         </div>
       )}
 
-      {success && (
+      {success && !error && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-medium text-emerald-800">
           <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
           <span>{success}</span>
@@ -245,7 +255,7 @@ function Candidates() {
                     <tr key={item._id} className="hover:bg-slate-50 transition">
                       <td className="px-3 py-3.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 font-bold text-indigo-700">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 font-bold text-amber-700">
                             {candidateUser?.name?.charAt(0) || 'C'}
                           </div>
                           <div>
@@ -263,7 +273,7 @@ function Candidates() {
                         <div className="flex flex-wrap gap-1">
                           {skills.length > 0 ? (
                             skills.map((s, idx) => (
-                              <span key={idx} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
+                              <span key={idx} className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
                                 {s}
                               </span>
                             ))
@@ -349,7 +359,7 @@ function Candidates() {
                   onChange={handleChange}
                   required
                   placeholder="e.g. Aarav Sharma"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                 />
               </div>
 
@@ -362,8 +372,13 @@ function Candidates() {
                   onChange={handleChange}
                   required
                   placeholder="aarav@college.edu"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                 />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold text-slate-700 uppercase">Temporary Password</label>
+                <input name="password" type="password" minLength={8} value={formData.password} onChange={handleChange} required autoComplete="new-password" className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400" />
               </div>
 
               <div>
@@ -372,7 +387,7 @@ function Candidates() {
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400"
                 >
                   <option value="Computer Science">Computer Science</option>
                   <option value="Information Technology">Information Technology</option>
@@ -389,7 +404,7 @@ function Candidates() {
                   value={formData.skills}
                   onChange={handleChange}
                   placeholder="DSA, React, Python, SQL"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
                 />
               </div>
 
@@ -403,9 +418,10 @@ function Candidates() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white hover:bg-indigo-700"
+                  disabled={isSubmitting}
+                  className="rounded-xl bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20"
                 >
-                  Register Student
+                  {isSubmitting ? 'Adding…' : 'Register Student'}
                 </button>
               </div>
             </form>
@@ -421,7 +437,7 @@ function SummaryCard({ label, value, icon: Icon }) {
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase text-slate-400">{label}</p>
-        <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600">
+        <div className="rounded-xl bg-amber-50 p-2 text-amber-600">
           <Icon size={18} />
         </div>
       </div>

@@ -8,6 +8,7 @@ import { Drive } from "../models/Drive.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { notifyDriveEvent } from "../utils/notifications.js";
 
 // Submit or update evaluation for an interview
 export const submitEvaluation = asyncHandler(async (req, res) => {
@@ -70,6 +71,7 @@ export const submitEvaluation = asyncHandler(async (req, res) => {
   }
 
   // Check if evaluation already exists for this interview
+  const roundWasAlreadyCompleted = interview.status === "completed";
   let evaluation = await Evaluation.findOne({ interview: interviewId });
 
   if (evaluation) {
@@ -166,6 +168,18 @@ export const submitEvaluation = asyncHandler(async (req, res) => {
       await candidateParticipant.save();
       pipelineAction = `Disqualified at ${currentRound.name}`;
     }
+  }
+
+  if (!roundWasAlreadyCompleted && currentRound) {
+    await notifyDriveEvent({
+      driveId: interview.drive,
+      type: "round_completed",
+      title: "Interview round completed",
+      message: `The ${currentRound.name} round has been completed. Check your dashboard for the latest status.`,
+      entityType: "interview",
+      entityId: interview._id,
+      userIds: [interview.candidate, interview.interviewer],
+    });
   }
 
   return res.status(200).json(
