@@ -21,6 +21,14 @@ export function dedupeScheduledInterviews(interviews = []) {
   return [...unique.values()];
 }
 
+export function filterScheduledInterviewsByPublishedVersion(interviews = [], publishedVersionIds = []) {
+  const publishedVersions = new Set(publishedVersionIds.map(idOf));
+  return interviews.filter((item) =>
+    ["scheduled", "rescheduled"].includes(item.status) &&
+    publishedVersions.has(idOf(item.scheduleVersion))
+  );
+}
+
 export function matchesSkills(interviewerSkills = [], requiredSkills = []) {
   const available = new Set(
     interviewerSkills.map((skill) => String(skill).trim().toLocaleLowerCase()).filter(Boolean)

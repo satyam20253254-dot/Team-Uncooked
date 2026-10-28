@@ -10,8 +10,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-const COORDINATOR_EMAIL = "coordinator@ancienttrials.edu";
-const COORDINATOR_PASSWORD = "AncientOne#2026";
+const COORDINATOR_EMAIL = process.env.COORDINATOR_EMAIL?.trim().toLowerCase();
+const COORDINATOR_PASSWORD = process.env.COORDINATOR_PASSWORD;
 
 // Generate JWT
 const generateToken = (userId) => {
@@ -52,7 +52,9 @@ export const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Choose candidate or interviewer for registration");
     }
     const normalizedEmail = email.trim().toLowerCase();
-    if (normalizedEmail === COORDINATOR_EMAIL) throw new ApiError(409, "The coordinator account is reserved");
+    if (COORDINATOR_EMAIL && normalizedEmail === COORDINATOR_EMAIL) {
+        throw new ApiError(409, "The coordinator account is reserved");
+    }
 
     // Check whether the email is already registered
     const existingUser = await User.findOne({
@@ -127,17 +129,16 @@ export const loginUser = asyncHandler(async (req, res) => {
     // Password has select: false in the schema
     const normalizedEmail = email.trim().toLowerCase();
     let user = await User.findOne({ email: normalizedEmail }).select("+password");
-    if (normalizedEmail === COORDINATOR_EMAIL) {
-        if (password !== COORDINATOR_PASSWORD) throw new ApiError(401, "Invalid email or password");
+    if (COORDINATOR_EMAIL && normalizedEmail === COORDINATOR_EMAIL) {
         if (!user) {
+            if (!COORDINATOR_PASSWORD) {
+                throw new ApiError(503, "Coordinator account setup is not configured on this server");
+            }
+            if (password !== COORDINATOR_PASSWORD) throw new ApiError(401, "Invalid email or password");
             user = await User.create({ name: "Trials Coordinator", email: COORDINATOR_EMAIL, password: COORDINATOR_PASSWORD, role: "coordinator" });
             user = await User.findById(user._id).select("+password");
         } else if (user.role !== "coordinator") {
             throw new ApiError(403, "The reserved coordinator account is unavailable");
-        } else if (!(await user.comparePassword(COORDINATOR_PASSWORD))) {
-            user.password = COORDINATOR_PASSWORD;
-            await user.save();
-            user = await User.findById(user._id).select("+password");
         }
     } else if (user?.role === "coordinator") {
         throw new ApiError(401, "Use the reserved coordinator account to sign in");

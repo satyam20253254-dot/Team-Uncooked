@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   X,
@@ -14,7 +14,6 @@ import {
   Loader2,
   Edit3,
   Info,
-  Sparkles,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useDrive } from '../context/DriveContext'
@@ -22,15 +21,34 @@ import { ThemeToggle } from '../context/ThemeContext'
 
 function ProfileModal({ isOpen, onClose }) {
   const { user, role, updateProfile } = useAuth()
+  if (!isOpen || !user) return null
+
+  return (
+    <ProfileModalContent
+      key={user._id}
+      isOpen={isOpen}
+      onClose={onClose}
+      user={user}
+      role={role}
+      updateProfile={updateProfile}
+    />
+  )
+}
+
+function ProfileModalContent({ isOpen, onClose, user, role, updateProfile }) {
   const { activeDrive } = useDrive()
 
   const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'edit'
 
   // Form State
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [department, setDepartment] = useState('')
-  const [skills, setSkills] = useState('')
+  const [name, setName] = useState(() => user.name || '')
+  const [email, setEmail] = useState(() => user.email || '')
+  const [department, setDepartment] = useState(() => user.metadata?.department || '')
+  const [skills, setSkills] = useState(() =>
+    Array.isArray(user.metadata?.skills)
+      ? user.metadata.skills.join(', ')
+      : (user.metadata?.skills || '')
+  )
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -38,24 +56,6 @@ function ProfileModal({ isOpen, onClose }) {
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
-
-  // Sync state whenever modal opens or user updates
-  useEffect(() => {
-    if (user) {
-      setName(user.name || '')
-      setEmail(user.email || '')
-      setDepartment(user.metadata?.department || '')
-      const skillList = Array.isArray(user.metadata?.skills)
-        ? user.metadata.skills.join(', ')
-        : (user.metadata?.skills || '')
-      setSkills(skillList)
-    }
-    setSuccessMsg('')
-    setErrorMsg('')
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
-  }, [user, isOpen])
 
   if (!isOpen || !user) return null
 
