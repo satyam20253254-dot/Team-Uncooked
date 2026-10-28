@@ -81,7 +81,7 @@ export const registerUser = asyncHandler(async (req, res) => {
                 userId: user._id,
                 role: assignedRole,
                 status: "active",
-                eligibleRoundIds: assignedRole === "candidate" ? rounds.map((r) => r._id) : [],
+                eligibleRoundIds: assignedRole === "candidate" ? (rounds.length > 0 ? [rounds[0]._id] : []) : [],
                 metadata: {
                     department: assignedRole === "interviewer" ? "Engineering & Tech" : "Computer Science",
                     skills: assignedRole === "interviewer" ? ["DSA", "React", "Node.js", "System Design"] : ["DSA", "React"],
@@ -165,6 +165,18 @@ export const loginUser = asyncHandler(async (req, res) => {
     const loggedInUser = user.toObject();
     delete loggedInUser.password;
 
+    try {
+        const participations = await DriveParticipant.find({ userId: user._id, status: "active" })
+            .populate("driveId", "name status")
+            .lean();
+        loggedInUser.participations = participations;
+        if (participations.length > 0) {
+            loggedInUser.metadata = participations[0].metadata || {};
+        }
+    } catch (partErr) {
+        console.warn("Could not load user drive metadata:", partErr.message);
+    }
+
     const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -208,15 +220,111 @@ export const logoutUser = asyncHandler(async (req, res) => {
 });
 
 export const getCurrentUser = asyncHandler(async (req, res) => {
+    const userObj = req.user.toObject ? req.user.toObject() : { ...req.user };
+    delete userObj.password;
+
+    try {
+        const participations = await DriveParticipant.find({ userId: req.user._id, status: "active" })
+            .populate("driveId", "name status")
+            .lean();
+        userObj.participations = participations;
+        if (participations.length > 0) {
+            userObj.metadata = participations[0].metadata || {};
+        }
+    } catch (partErr) {
+        console.warn("Could not load user drive metadata:", partErr.message);
+    }
+
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                req.user,
+                userObj,
                 "Current user fetched successfully"
             )
         );
+});
+
+// Update Current User Profile (Name, Email, Metadata, Password)
+export const updateUserProfile = asyncHandler(async (req, res) => {
+    const { name, email, department, skills, currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id).select("+password");
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    if (name && typeof name === "string" && name.trim()) {
+        user.name = name.trim();
+    }
+
+    if (email && typeof email === "string" && email.trim()) {
+        const normalizedEmail = email.trim().toLowerCase();
+        if (normalizedEmail !== user.email) {
+            const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } });
+            if (existing) {
+                throw new ApiError(409, "Email is already in use by another account");
+            }
+            user.email = normalizedEmail;
+        }
+    }
+
+    // Change password if requested
+    if (newPassword) {
+        if (!currentPassword) {
+            throw new ApiError(400, "Current password is required to change password");
+        }
+        const isMatch = await user.comparePassword(currentPassword);
+        if (!isMatch) {
+            throw new ApiError(400, "Current password does not match");
+        }
+        if (typeof newPassword !== "string" || newPassword.length < 6) {
+            throw new ApiError(400, "New password must be at least 6 characters long");
+        }
+        user.password = newPassword;
+    }
+
+    await user.save();
+
+    // Update DriveParticipant metadata if provided
+    if (department !== undefined || skills !== undefined) {
+        const updateFields = {};
+        if (department !== undefined) updateFields["metadata.department"] = String(department).trim();
+        if (skills !== undefined) {
+            const skillsArray = Array.isArray(skills)
+                ? skills.map(s => String(s).trim()).filter(Boolean)
+                : String(skills).split(",").map(s => s.trim()).filter(Boolean);
+            updateFields["metadata.skills"] = skillsArray;
+        }
+        await DriveParticipant.updateMany(
+            { userId: user._id },
+            { $set: updateFields }
+        );
+    }
+
+    const updatedUser = user.toObject();
+    delete updatedUser.password;
+
+    try {
+        const participations = await DriveParticipant.find({ userId: user._id, status: "active" })
+            .populate("driveId", "name status")
+            .lean();
+        updatedUser.participations = participations;
+        if (participations.length > 0) {
+            updatedUser.metadata = participations[0].metadata || {};
+        }
+    } catch (partErr) {
+        console.warn("Could not load updated user metadata:", partErr.message);
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updatedUser,
+            "Profile updated successfully"
+        )
+    );
 });
 
 // Fetch all registered users with optional role and search filters

@@ -162,13 +162,7 @@ export function buildSchedulePlan({
       if (fulfilledRounds.has(roundId)) continue;
 
       if (eligibleRounds.size > 0 && !eligibleRounds.has(roundId)) {
-        unassigned.push({
-          candidateId,
-          candidateName: candidate.name || "Candidate",
-          roundId,
-          roundName: round.name,
-          reason: "This round is not unlocked for the candidate.",
-        });
+        // Candidate has not reached this round yet in the pipeline.
         continue;
       }
 

@@ -166,8 +166,8 @@ function Candidates() {
       {/* Top Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Candidates</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Candidates</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Registered students and their progression across placement rounds.
           </p>
         </div>
@@ -182,15 +182,15 @@ function Candidates() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-700">
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/50 p-4 text-xs font-medium text-red-700 dark:text-red-300">
           <AlertCircle size={16} className="shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {success && !error && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-medium text-emerald-800">
-          <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/50 p-4 text-xs font-medium text-emerald-800 dark:text-emerald-300">
+          <CheckCircle2 size={16} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{success}</span>
         </div>
       )}
@@ -211,32 +211,32 @@ function Candidates() {
       </div>
 
       {/* Candidate List Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-3">
-          <Search size={16} className="shrink-0 text-slate-400" />
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm transition">
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 transition">
+          <Search size={16} className="shrink-0 text-slate-400 dark:text-slate-500" />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search candidates by name, email, department..."
-            className="w-full py-2.5 text-xs outline-none"
+            className="w-full py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none bg-transparent"
           />
         </div>
 
         <div className="mt-5 overflow-x-auto">
           {loading ? (
-            <div className="py-12 text-center text-xs text-slate-400">Loading candidates...</div>
+            <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">Loading candidates...</div>
           ) : filteredCandidates.length === 0 ? (
             <div className="py-12 text-center">
-              <Users size={36} className="mx-auto text-slate-300" />
-              <p className="mt-2 text-sm font-semibold text-slate-700">No candidates registered</p>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <Users size={36} className="mx-auto text-slate-300 dark:text-slate-600" />
+              <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-300">No candidates registered</p>
+              <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
                 Click <strong>"Register Candidate"</strong> to add participants to this placement drive.
               </p>
             </div>
           ) : (
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider font-semibold">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">
                   <th className="px-3 py-3">Candidate</th>
                   <th className="px-3 py-3">Department</th>
                   <th className="px-3 py-3">Skills Tags</th>
@@ -246,26 +246,26 @@ function Candidates() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredCandidates.map((item) => {
                   const candidateUser = item.userId
                   const skills = item.metadata?.skills || []
 
                   return (
-                    <tr key={item._id} className="hover:bg-slate-50 transition">
+                    <tr key={item._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
                       <td className="px-3 py-3.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 font-bold text-amber-700">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/70 border border-amber-200/60 dark:border-amber-800/60 font-bold text-amber-700 dark:text-amber-300">
                             {candidateUser?.name?.charAt(0) || 'C'}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{candidateUser?.name || 'Unnamed'}</p>
-                            <p className="text-[11px] text-slate-400">{candidateUser?.email}</p>
+                            <p className="font-bold text-slate-900 dark:text-slate-100">{candidateUser?.name || 'Unnamed'}</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">{candidateUser?.email}</p>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-3 py-3.5 font-medium text-slate-700">
+                      <td className="px-3 py-3.5 font-medium text-slate-700 dark:text-slate-300">
                         {item.metadata?.department || 'General'}
                       </td>
 
@@ -273,29 +273,33 @@ function Candidates() {
                         <div className="flex flex-wrap gap-1">
                           {skills.length > 0 ? (
                             skills.map((s, idx) => (
-                              <span key={idx} className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                              <span key={idx} className="rounded bg-amber-50 dark:bg-amber-950/70 border border-amber-200/60 dark:border-amber-800/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
                                 {s}
                               </span>
                             ))
                           ) : (
-                            <span className="text-slate-400 italic">None tagged</span>
+                            <span className="text-slate-400 dark:text-slate-500 italic">None tagged</span>
                           )}
                         </div>
                       </td>
 
                       <td className="px-3 py-3.5">
                         <div className="flex flex-wrap gap-1">
-                          {item.eligibleRoundIds?.length > 0 ? (
+                          {item.metadata?.completedAllRounds ? (
+                            <span className="rounded bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
+                              All Cleared
+                            </span>
+                          ) : item.eligibleRoundIds?.length > 0 ? (
                             item.eligibleRoundIds.map((roundId) => {
                               const r = rounds.find((rd) => rd._id === roundId)
                               return (
-                                <span key={roundId} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+                                <span key={roundId} className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
                                   {r?.name || 'Round'}
                                 </span>
                               )
                             })
                           ) : (
-                            <span className="text-slate-400">All Cleared</span>
+                            <span className="text-slate-400 dark:text-slate-500">Round 1 (Initial)</span>
                           )}
                         </div>
                       </td>
@@ -304,24 +308,24 @@ function Candidates() {
                         <select
                           value={item.status}
                           onChange={(e) => handleStatusChange(item._id, e.target.value)}
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase outline-none ${
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase outline-none cursor-pointer ${
                             item.status === 'active'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                               : item.status === 'disqualified'
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                              : 'bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                           }`}
                         >
-                          <option value="active">Active</option>
-                          <option value="withdrawn">Withdrawn</option>
-                          <option value="disqualified">Disqualified</option>
+                          <option value="active" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Active</option>
+                          <option value="withdrawn" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Withdrawn</option>
+                          <option value="disqualified" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Disqualified</option>
                         </select>
                       </td>
 
                       <td className="px-3 py-3.5 text-right">
                         <button
                           onClick={() => handleRemove(item._id, candidateUser?.name)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 transition"
                           title="Remove from drive"
                         >
                           <Trash2 size={15} />
@@ -338,33 +342,33 @@ function Candidates() {
 
       {/* Add Candidate Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Register Candidate</h2>
-                <p className="text-xs text-slate-500">Add student to the current placement drive pool.</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Register Candidate</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Add student to the current placement drive pool.</p>
               </div>
-              <button onClick={() => setShowForm(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <button onClick={() => setShowForm(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Candidate Name</label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Candidate Name</label>
                 <input
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   required
                   placeholder="e.g. Aarav Sharma"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Email Address</label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Email Address</label>
                 <input
                   name="email"
                   type="email"
@@ -372,22 +376,31 @@ function Candidates() {
                   onChange={handleChange}
                   required
                   placeholder="aarav@college.edu"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Temporary Password</label>
-                <input name="password" type="password" minLength={8} value={formData.password} onChange={handleChange} required autoComplete="new-password" className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400" />
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Temporary Password</label>
+                <input
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  autoComplete="new-password"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
+                />
               </div>
 
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Department</label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Department</label>
                 <select
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 >
                   <option value="Computer Science">Computer Science</option>
                   <option value="Information Technology">Information Technology</option>
@@ -398,21 +411,21 @@ function Candidates() {
               </div>
 
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Skills (Comma-separated)</label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Skills (Comma-separated)</label>
                 <input
                   name="skills"
                   value={formData.skills}
                   onChange={handleChange}
                   placeholder="DSA, React, Python, SQL"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -434,14 +447,14 @@ function Candidates() {
 
 function SummaryCard({ label, value, icon: Icon }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm transition">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase text-slate-400">{label}</p>
-        <div className="rounded-xl bg-amber-50 p-2 text-amber-600">
+        <p className="text-xs font-semibold uppercase text-slate-400 dark:text-slate-500">{label}</p>
+        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/70 border border-amber-200/60 dark:border-amber-800/60 p-2 text-amber-600 dark:text-amber-400">
           <Icon size={18} />
         </div>
       </div>
-      <p className="mt-3 text-2xl font-black text-slate-900">{value}</p>
+      <p className="mt-3 text-2xl font-black text-slate-900 dark:text-slate-100">{value}</p>
     </div>
   )
 }

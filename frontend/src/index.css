@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -12,6 +14,12 @@
     color: #0f172a;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  html.dark body {
+    background-color: #090d16;
+    color: #f1f5f9;
   }
 }
 
@@ -42,6 +50,11 @@
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
+html.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .dark-glass-panel {
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(16px);
@@ -60,6 +73,22 @@
 .surface-card:hover {
   border-color: #cbd5e1;
   box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+}
+
+html.dark .surface-card {
+  background: #0f172a;
+  border-color: #1e293b;
+  color: #f8fafc;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .surface-card:hover {
+  border-color: #334155;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.6);
+}
+
+html.dark input, html.dark select, html.dark textarea {
+  color-scheme: dark;
 }
 
 /* Subtle Shimmer for Highlighting */

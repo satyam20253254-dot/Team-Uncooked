@@ -100,28 +100,26 @@ function Availability() {
         location: roomForm.location.trim(),
         capacity: Number(roomForm.capacity),
         isVirtual: Boolean(roomForm.isVirtual),
-        meetingLink: roomForm.meetingLink?.trim() || '',
+        meetingLink: roomForm.isVirtual ? roomForm.meetingLink.trim() : null,
       })
-
-      setSuccess(`Room "${roomForm.name}" created successfully!`)
-      setShowRoomModal(false)
+      setSuccess(`Venue ${roomForm.name} added successfully!`)
       setRoomForm({ name: '', location: '', capacity: 4, isVirtual: false, meetingLink: '' })
+      setShowRoomModal(false)
       fetchData()
     } catch (err) {
-      setError(err.message || 'Failed to create interview room.')
+      setError(err.message || 'Failed to add venue.')
     }
   }
 
   async function handleDeleteRoom(roomId, roomName) {
     if (!activeDrive?._id) return
-    const confirmed = window.confirm(`Delete room "${roomName}"?`)
+    const confirmed = window.confirm(`Delete venue "${roomName}"? Existing interviews may be impacted.`)
     if (!confirmed) return
-
     try {
       await api.delete(`/drives/${activeDrive._id}/rooms/${roomId}`)
       fetchData()
     } catch (err) {
-      alert(err.message || 'Cannot delete room with active scheduled interviews.')
+      alert(err.message || 'Cannot delete room with assigned interviews.')
     }
   }
 
@@ -130,31 +128,45 @@ function Availability() {
     if (!activeDrive?._id) return
     setError('')
     setSuccess('')
+
+    let resolvedOwnerId
+    if (role === 'candidate' || role === 'interviewer') {
+      resolvedOwnerId = userId
+    } else {
+      resolvedOwnerId = availForm.ownerType === 'room'
+        ? availForm.selectedRoomId
+        : availForm.selectedParticipantId
+    }
+
+    if (!resolvedOwnerId) {
+      setError('Please select a valid resource owner for this availability window.')
+      return
+    }
+
     try {
-      const startDateTime = new Date(`${availForm.date}T${availForm.startTime}:00`)
-      const endDateTime = new Date(`${availForm.date}T${availForm.endTime}:00`)
-      if (startDateTime <= new Date()) throw new Error('Availability must start in the future. Choose a future date or time.')
+      const [startH, startM] = availForm.startTime.split(':')
+      const [endH, endM] = availForm.endTime.split(':')
 
-      const payload = {
+      const start = new Date(`${availForm.date}T${startH}:${startM}:00`)
+      const end = new Date(`${availForm.date}T${endH}:${endM}:00`)
+
+      if (end <= start) {
+        setError('End time must be after start time.')
+        return
+      }
+
+      await api.post(`/drives/${activeDrive._id}/availabilities`, {
         ownerType: availForm.ownerType,
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
-      }
+        ownerId: resolvedOwnerId,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+      })
 
-      if (availForm.ownerType === 'room') {
-        if (!availForm.selectedRoomId) throw new Error('Please select a room.')
-        payload.ownerId = availForm.selectedRoomId
-      } else if (role === 'coordinator' || role === 'admin') {
-        if (!availForm.selectedParticipantId) throw new Error(`Please select an active ${availForm.ownerType}.`)
-        payload.ownerId = availForm.selectedParticipantId
-      }
-
-      await api.post(`/drives/${activeDrive._id}/availabilities`, payload)
-      setSuccess('Availability added.')
+      setSuccess('Availability window published successfully!')
       setShowAvailModal(false)
       fetchData()
     } catch (err) {
-      setError(err.message || 'Failed to post availability window.')
+      setError(err.message || 'Failed to save availability window.')
     }
   }
 
@@ -164,7 +176,7 @@ function Availability() {
       await api.delete(`/drives/${activeDrive._id}/availabilities/${availId}`)
       fetchData()
     } catch (err) {
-      alert(err.message || 'Failed to delete availability window.')
+      alert(err.message || 'Could not delete availability window.')
     }
   }
 
@@ -180,10 +192,10 @@ function Availability() {
       {/* Page Heading */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
             {role === 'candidate' ? 'My availability' : role === 'interviewer' ? 'My availability' : 'Rooms & Availability Windows'}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {role === 'candidate' || role === 'interviewer' ? 'Share the times you can attend so the coordinator can find a feasible interview slot.' : 'Add interview rooms and manage room availability. Candidates and interviewers submit their own availability.'}
           </p>
         </div>
@@ -191,7 +203,7 @@ function Availability() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowAvailModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition"
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/70 px-4 py-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition"
           >
             <Clock size={16} />
             Post Availability Window
@@ -208,15 +220,15 @@ function Availability() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-700">
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/50 p-4 text-xs font-medium text-red-700 dark:text-red-300">
           <AlertCircle size={16} className="shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-medium text-emerald-800">
-          <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/50 p-4 text-xs font-medium text-emerald-800 dark:text-emerald-300">
+          <CheckCircle2 size={16} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{success}</span>
         </div>
       )}
@@ -239,41 +251,41 @@ function Availability() {
       </div>
 
       {/* Rooms Table */}
-      {(role === 'coordinator' || role === 'admin') && <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
+      {(role === 'coordinator' || role === 'admin') && <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm transition">
+        <div className="flex flex-col gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-bold text-slate-900">Configured Interview Venues</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="font-bold text-slate-900 dark:text-slate-100">Configured Interview Venues</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Rooms and virtual links available for candidate panels
             </p>
           </div>
 
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search rooms..."
-              className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs outline-none focus:border-amber-400 sm:w-60"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500 sm:w-60"
             />
           </div>
         </div>
 
         <div className="mt-5 overflow-x-auto">
           {loading ? (
-            <div className="py-12 text-center text-xs text-slate-400">Loading rooms...</div>
+            <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">Loading rooms...</div>
           ) : filteredRooms.length === 0 ? (
             <div className="py-12 text-center">
-              <DoorOpen size={36} className="mx-auto text-slate-300" />
-              <p className="mt-2 text-sm font-semibold text-slate-700">No rooms configured</p>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <DoorOpen size={36} className="mx-auto text-slate-300 dark:text-slate-600" />
+              <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-300">No rooms configured</p>
+              <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
                 Click <strong>"Add Room"</strong> to add physical venues or virtual meeting rooms.
               </p>
             </div>
           ) : (
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider font-semibold">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">
                   <th className="px-3 py-3">Room / Venue</th>
                   <th className="px-3 py-3">Type</th>
                   <th className="px-3 py-3">Capacity</th>
@@ -281,36 +293,36 @@ function Availability() {
                   <th className="px-3 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredRooms.map((room) => (
-                  <tr key={room._id} className="hover:bg-slate-50 transition">
-                    <td className="px-3 py-3.5 font-bold text-slate-900">{room.name}</td>
+                  <tr key={room._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                    <td className="px-3 py-3.5 font-bold text-slate-900 dark:text-slate-100">{room.name}</td>
                     <td className="px-3 py-3.5">
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
                           room.isVirtual
-                            ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            ? 'bg-teal-50 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60'
+                            : 'bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60'
                         }`}
                       >
                         {room.isVirtual ? 'Virtual Meet' : 'Physical'}
                       </span>
                     </td>
-                    <td className="px-3 py-3.5 text-slate-600">{room.capacity} panelist/seats</td>
+                    <td className="px-3 py-3.5 text-slate-600 dark:text-slate-300">{room.capacity} panelist/seats</td>
                     <td className="px-3 py-3.5">
                       {room.isVirtual ? (
                         <a
                           href={room.meetingLink || '#'}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-teal-700 font-semibold hover:underline flex items-center gap-1"
+                          className="text-teal-600 dark:text-teal-400 font-semibold hover:underline flex items-center gap-1"
                         >
                           <Video size={13} />
                           <span className="max-w-[200px] truncate">{room.meetingLink || 'Virtual Meeting'}</span>
                         </a>
                       ) : (
-                        <span className="text-slate-600 flex items-center gap-1">
-                          <MapPin size={13} className="text-slate-400" />
+                        <span className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                          <MapPin size={13} className="text-slate-400 dark:text-slate-500" />
                           {room.location || 'Campus'}
                         </span>
                       )}
@@ -318,7 +330,7 @@ function Availability() {
                     <td className="px-3 py-3.5 text-right">
                       <button
                         onClick={() => handleDeleteRoom(room._id, room.name)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 transition"
                         title="Delete room"
                       >
                         <Trash2 size={15} />
@@ -333,23 +345,23 @@ function Availability() {
       </div>}
 
       {/* Availability Windows Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="border-b border-slate-100 pb-4">
-          <h2 className="font-bold text-slate-900">Active Availability Windows</h2>
-          <p className="text-xs text-slate-500">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm transition">
+        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+          <h2 className="font-bold text-slate-900 dark:text-slate-100">Active Availability Windows</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Availability windows used when finding and booking interview times
           </p>
         </div>
 
         <div className="mt-4 overflow-x-auto">
           {availabilities.length === 0 ? (
-            <p className="py-8 text-center text-xs text-slate-400">
+            <p className="py-8 text-center text-xs text-slate-400 dark:text-slate-500">
               No availability windows registered. Click <strong>"Post Availability Window"</strong> to define time blocks.
             </p>
           ) : (
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider font-semibold">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">
                   <th className="px-3 py-3">Owner Type</th>
                   <th className="px-3 py-3">Resource / Panel</th>
                   <th className="px-3 py-3">Date</th>
@@ -357,30 +369,30 @@ function Availability() {
                   <th className="px-3 py-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {availabilities.map((av) => {
                   const s = new Date(av.startTime)
                   const e = new Date(av.endTime)
 
                   return (
-                    <tr key={av._id} className="hover:bg-slate-50 transition">
+                    <tr key={av._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
                       <td className="px-3 py-3">
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-700">
+                        <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300">
                           {av.ownerType}
                         </span>
                       </td>
-                      <td className="px-3 py-3 font-semibold text-slate-900">
+                      <td className="px-3 py-3 font-semibold text-slate-900 dark:text-slate-100">
                         {av.ownerId?.name || (av.ownerType === 'room' ? 'Room Venue' : 'Panel / Candidate')}
                       </td>
-                      <td className="px-3 py-3 text-slate-600">{s.toLocaleDateString()}</td>
-                      <td className="px-3 py-3 text-slate-800 font-medium">
+                      <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{s.toLocaleDateString()}</td>
+                      <td className="px-3 py-3 text-slate-800 dark:text-slate-200 font-medium">
                         {s.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -{' '}
                         {e.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="px-3 py-3 text-right">
                         <button
                           onClick={() => handleDeleteAvail(av._id)}
-                          className="rounded-lg p-1 text-slate-400 hover:text-rose-600"
+                          className="rounded-lg p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition"
                           title="Delete window"
                         >
                           <Trash2 size={14} />
@@ -397,24 +409,24 @@ function Availability() {
 
       {/* Add Room Modal */}
       {showRoomModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-bold text-slate-900">Add Interview Venue</h2>
-              <button onClick={() => setShowRoomModal(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Add Interview Venue</h2>
+              <button onClick={() => setShowRoomModal(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleAddRoom} className="space-y-3 text-xs">
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Room Name</label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Room Name</label>
                 <input
                   required
                   value={roomForm.name}
                   onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })}
                   placeholder="e.g. Conference Room Charlie or Google Meet #1"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
               </div>
 
@@ -426,52 +438,52 @@ function Availability() {
                   onChange={(e) => setRoomForm({ ...roomForm, isVirtual: e.target.checked })}
                   className="rounded text-amber-600"
                 />
-                <label htmlFor="isVirtual" className="font-semibold text-slate-700">
+                <label htmlFor="isVirtual" className="font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
                   This is an Online / Virtual Meeting Room
                 </label>
               </div>
 
               {roomForm.isVirtual ? (
                 <div>
-                  <label className="mb-1 block font-bold text-slate-700 uppercase">Meeting Link</label>
+                  <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Meeting Link</label>
                   <input
                     required
                     value={roomForm.meetingLink}
                     onChange={(e) => setRoomForm({ ...roomForm, meetingLink: e.target.value })}
                     placeholder="https://meet.google.com/xyz-abc-qrs"
-                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                   />
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1 block font-bold text-slate-700 uppercase">Physical Location</label>
+                    <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Physical Location</label>
                     <input
                       required
                       value={roomForm.location}
                       onChange={(e) => setRoomForm({ ...roomForm, location: e.target.value })}
                       placeholder="e.g. Academic Block, 3rd Floor"
-                      className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block font-bold text-slate-700 uppercase">Capacity</label>
+                    <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Capacity</label>
                     <input
                       type="number"
                       min="1"
                       value={roomForm.capacity}
                       onChange={(e) => setRoomForm({ ...roomForm, capacity: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                     />
                   </div>
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowRoomModal(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -489,40 +501,40 @@ function Availability() {
 
       {/* Add Availability Modal */}
       {showAvailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Post Availability Window</h2>
-                <p className="text-xs text-slate-500">Choose who or what this availability applies to, then set a time.</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Post Availability Window</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Choose who or what this availability applies to, then set a time.</p>
               </div>
-              <button onClick={() => setShowAvailModal(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <button onClick={() => setShowAvailModal(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleAddAvailability} className="space-y-3 text-xs">
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Resource Type</label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Resource Type</label>
                 {role === 'coordinator' || role === 'admin' ? <select
                   value={availForm.ownerType}
                   onChange={(e) => setAvailForm({ ...availForm, ownerType: e.target.value, selectedRoomId: '', selectedParticipantId: '' })}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 >
                   <option value="candidate">Candidate</option>
                   <option value="interviewer">Interviewer</option>
                   <option value="room">Room Venue</option>
-                </select> : <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 font-semibold capitalize text-slate-700">My {role} availability</div>}
+                </select> : <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 font-semibold capitalize text-slate-700 dark:text-slate-200">My {role} availability</div>}
               </div>
 
               {availForm.ownerType === 'room' && (
                 <div>
-                  <label className="mb-1 block font-bold text-slate-700 uppercase">Select Room</label>
+                  <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Select Room</label>
                   <select
                     required
                     value={availForm.selectedRoomId}
                     onChange={(e) => setAvailForm({ ...availForm, selectedRoomId: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                   >
                     <option value="">Select a room</option>
                     {rooms.map((r) => (
@@ -536,8 +548,8 @@ function Availability() {
 
               {(role === 'coordinator' || role === 'admin') && availForm.ownerType !== 'room' && (
                 <div>
-                  <label className="mb-1 block font-bold text-slate-700 uppercase">Select {availForm.ownerType}</label>
-                  <select required value={availForm.selectedParticipantId} onChange={(e) => setAvailForm({ ...availForm, selectedParticipantId: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400">
+                  <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Select {availForm.ownerType}</label>
+                  <select required value={availForm.selectedParticipantId} onChange={(e) => setAvailForm({ ...availForm, selectedParticipantId: e.target.value })} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500">
                     <option value="">Choose an active {availForm.ownerType}</option>
                     {(availForm.ownerType === 'candidate' ? candidateParticipants : interviewerParticipants).filter((participant) => participant.status === 'active' && participant.userId?._id).map((participant) => <option key={participant._id} value={participant.userId._id}>{participant.userId.name} · {participant.userId.email}</option>)}
                   </select>
@@ -545,44 +557,44 @@ function Availability() {
               )}
 
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Date</label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Date</label>
                 <input
                   required
                   type="date"
                   value={availForm.date}
                   onChange={(e) => setAvailForm({ ...availForm, date: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block font-bold text-slate-700 uppercase">Start Time</label>
+                  <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Start Time</label>
                   <input
                     required
                     type="time"
                     value={availForm.startTime}
                     onChange={(e) => setAvailForm({ ...availForm, startTime: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-bold text-slate-700 uppercase">End Time</label>
+                  <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">End Time</label>
                   <input
                     required
                     type="time"
                     value={availForm.endTime}
                     onChange={(e) => setAvailForm({ ...availForm, endTime: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowAvailModal(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -603,12 +615,12 @@ function Availability() {
 
 function SummaryCard({ title, value, icon }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm transition">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase text-slate-400">{title}</p>
-        <div className="rounded-xl bg-amber-50 p-2 text-amber-600">{icon}</div>
+        <p className="text-xs font-semibold uppercase text-slate-400 dark:text-slate-500">{title}</p>
+        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/70 border border-amber-200/60 dark:border-amber-800/60 p-2 text-amber-600 dark:text-amber-400">{icon}</div>
       </div>
-      <p className="mt-3 text-2xl font-black text-slate-900">{value}</p>
+      <p className="mt-3 text-2xl font-black text-slate-900 dark:text-slate-100">{value}</p>
     </div>
   )
 }

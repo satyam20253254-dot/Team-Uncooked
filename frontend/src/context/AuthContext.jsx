@@ -38,6 +38,27 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const response = await api.get('/auth/me')
+      const updated = response?.data || null
+      setUser(updated)
+      return updated
+    } catch (err) {
+      console.warn('Failed to refresh user:', err)
+      return null
+    }
+  }, [])
+
+  const updateProfile = useCallback(async (profileData) => {
+    const response = await api.patch('/auth/profile', profileData)
+    const updatedUser = response?.data || null
+    if (updatedUser) {
+      setUser(updatedUser)
+    }
+    return response
+  }, [])
+
   useEffect(() => {
     const token = localStorage.getItem('uncooked_token')
     if (!token) return
@@ -51,7 +72,11 @@ export function AuthProvider({ children }) {
   }, [])
 
   const role = user?.role || null
-  return <AuthContext.Provider value={{ user, role, signIn, signUp, signOut, loading }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, role, signIn, signUp, signOut, loading, refreshUser, updateProfile }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

@@ -110,11 +110,11 @@ function Interviewers() {
           department: formData.department,
           skills: parsedSkills,
           maxDailyInterviews: Number(formData.maxDailyInterviews) || 4,
-          registeredAt: new Date().toISOString(),
+          joinedAt: new Date().toISOString(),
         },
       })
 
-      setSuccess(`Interviewer panelist ${formData.name} successfully registered with skill tags!`)
+      setSuccess(`Interviewer ${formData.name} added successfully!`)
       setFormData({
         name: '',
         email: '',
@@ -127,22 +127,22 @@ function Interviewers() {
       fetchInterviewers()
     } catch (err) {
       setSuccess('')
-      setError(err.message || 'Failed to add interviewer panelist.')
+      setError(err.message || 'Failed to add interviewer.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  async function handleRemove(participantId, name) {
+  async function handleRemove(participantId, interviewerName) {
     if (!activeDrive?._id) return
-    const confirmed = window.confirm(`Remove ${name} from this drive?`)
+    const confirmed = window.confirm(`Remove panelist ${interviewerName} from this drive?`)
     if (!confirmed) return
 
     try {
       await api.delete(`/drives/${activeDrive._id}/participants/${participantId}`)
       fetchInterviewers()
     } catch (err) {
-      alert(err.message || 'Cannot remove interviewer with active scheduled interviews.')
+      alert(err.message || 'Cannot remove interviewer with scheduled active interviews.')
     }
   }
 
@@ -151,7 +151,6 @@ function Interviewers() {
     const name = item.userId?.name?.toLowerCase() || ''
     const email = item.userId?.email?.toLowerCase() || ''
     const dept = item.metadata?.department?.toLowerCase() || ''
-
     return name.includes(query) || email.includes(query) || dept.includes(query)
   })
 
@@ -160,9 +159,9 @@ function Interviewers() {
       {/* Top Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Interviewer Panels</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Manage interviewers, their areas of expertise, and daily interview capacity.
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Interviewer Panels</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Configure panelists, skill requirements, and maximum daily interview thresholds.
           </p>
         </div>
 
@@ -176,15 +175,15 @@ function Interviewers() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-700">
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/50 p-4 text-xs font-medium text-red-700 dark:text-red-300">
           <AlertCircle size={16} className="shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {success && !error && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-medium text-emerald-800">
-          <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/50 p-4 text-xs font-medium text-emerald-800 dark:text-emerald-300">
+          <CheckCircle2 size={16} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{success}</span>
         </div>
       )}
@@ -205,32 +204,32 @@ function Interviewers() {
       </div>
 
       {/* Interviewers Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-3">
-          <Search size={16} className="shrink-0 text-slate-400" />
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm transition">
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 transition">
+          <Search size={16} className="shrink-0 text-slate-400 dark:text-slate-500" />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search panels by name, email, department..."
-            className="w-full py-2.5 text-xs outline-none"
+            className="w-full py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none bg-transparent"
           />
         </div>
 
         <div className="mt-5 overflow-x-auto">
           {loading ? (
-            <div className="py-12 text-center text-xs text-slate-400">Loading interview panels...</div>
+            <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">Loading interview panels...</div>
           ) : filteredInterviewers.length === 0 ? (
             <div className="py-12 text-center">
-              <UserRoundCheck size={36} className="mx-auto text-slate-300" />
-              <p className="mt-2 text-sm font-semibold text-slate-700">No interviewers assigned yet</p>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <UserRoundCheck size={36} className="mx-auto text-slate-300 dark:text-slate-600" />
+              <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-300">No interviewers assigned yet</p>
+              <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
                 Add interviewers and their areas of expertise to make them available for scheduling.
               </p>
             </div>
           ) : (
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider font-semibold">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">
                   <th className="px-3 py-3">Interviewer</th>
                   <th className="px-3 py-3">Department</th>
                   <th className="px-3 py-3">Expertise & Skill Tags</th>
@@ -240,46 +239,46 @@ function Interviewers() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredInterviewers.map((item) => {
                   const interviewerUser = item.userId
                   const skills = item.metadata?.skills || []
                   const maxDaily = item.metadata?.maxDailyInterviews || 4
 
                   return (
-                    <tr key={item._id} className="hover:bg-slate-50 transition">
+                    <tr key={item._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
                       <td className="px-3 py-3.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 font-bold text-emerald-700">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200/60 dark:border-emerald-800/60 font-bold text-emerald-700 dark:text-emerald-300">
                             {interviewerUser?.name?.charAt(0) || 'I'}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{interviewerUser?.name || 'Panelist'}</p>
-                            <p className="text-[11px] text-slate-400">{interviewerUser?.email}</p>
+                            <p className="font-bold text-slate-900 dark:text-slate-100">{interviewerUser?.name || 'Panelist'}</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">{interviewerUser?.email}</p>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-3 py-3.5 font-medium text-slate-700">
+                      <td className="px-3 py-3.5 font-medium text-slate-700 dark:text-slate-300">
                         {item.metadata?.department || 'Engineering'}
                       </td>
 
                       <td className="px-3 py-3.5">
                         <div className="flex flex-wrap gap-1">
                           {skills.map((s, idx) => (
-                            <span key={idx} className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-100">
+                            <span key={idx} className="rounded bg-emerald-50 dark:bg-emerald-950/70 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/60">
                               {s}
                             </span>
                           ))}
                         </div>
                       </td>
 
-                      <td className="px-3 py-3.5 font-semibold text-slate-700">
+                      <td className="px-3 py-3.5 font-semibold text-slate-700 dark:text-slate-300">
                         Max {maxDaily} interviews / day
                       </td>
 
                       <td className="px-3 py-3.5">
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 uppercase">
+                        <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/70 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 uppercase">
                           {item.status}
                         </span>
                       </td>
@@ -287,7 +286,7 @@ function Interviewers() {
                       <td className="px-3 py-3.5 text-right">
                         <button
                           onClick={() => handleRemove(item._id, interviewerUser?.name)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 transition"
                           title="Remove panel"
                         >
                           <Trash2 size={15} />
@@ -304,33 +303,33 @@ function Interviewers() {
 
       {/* Add Interviewer Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Add Interviewer Panel</h2>
-                <p className="text-xs text-slate-500">Add an interviewer and set their interview capacity and expertise.</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Add Interviewer Panel</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Add an interviewer and set their interview capacity and expertise.</p>
               </div>
-              <button onClick={() => setShowForm(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <button onClick={() => setShowForm(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Interviewer Name</label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Interviewer Name</label>
                 <input
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   required
                   placeholder="e.g. Rahul Verma"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Email Address</label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Email Address</label>
                 <input
                   name="email"
                   type="email"
@@ -338,23 +337,32 @@ function Interviewers() {
                   onChange={handleChange}
                   required
                   placeholder="rahul.verma@apex.corp"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">Temporary Password</label>
-                <input name="password" type="password" minLength={8} value={formData.password} onChange={handleChange} required autoComplete="new-password" className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400" />
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Temporary Password</label>
+                <input
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  autoComplete="new-password"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
+                />
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block font-bold text-slate-700 uppercase">Department</label>
+                  <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Department</label>
                   <select
                     name="department"
                     value={formData.department}
                     onChange={handleChange}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 outline-none focus:border-amber-400"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                   >
                     <option value="Engineering & Tech">Engineering & Tech</option>
                     <option value="Product & Design">Product & Design</option>
@@ -364,7 +372,7 @@ function Interviewers() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block font-bold text-slate-700 uppercase">Max Daily Load</label>
+                  <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Max Daily Load</label>
                   <input
                     name="maxDailyInterviews"
                     type="number"
@@ -372,32 +380,30 @@ function Interviewers() {
                     max="10"
                     value={formData.maxDailyInterviews}
                     onChange={handleChange}
-                    className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block font-bold text-slate-700 uppercase">
-                  Skills & Expertise Tags (Comma-separated)
-                </label>
+                <label className="mb-1 block font-bold text-slate-700 dark:text-slate-300 uppercase">Expertise & Skills</label>
                 <input
                   name="skills"
                   value={formData.skills}
                   onChange={handleChange}
-                  placeholder="DSA, React, System Design, Node.js"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 outline-none focus:border-amber-400"
+                  placeholder="DSA, System Design, React, Node.js"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-amber-400 dark:focus:border-amber-500"
                 />
-                <p className="mt-1 text-[10px] text-slate-400">
+                <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
                   Used to match interviewers with the requirements for each round.
                 </p>
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -419,14 +425,14 @@ function Interviewers() {
 
 function SummaryCard({ label, value, icon: Icon }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm transition">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase text-slate-400">{label}</p>
-        <div className="rounded-xl bg-emerald-50 p-2 text-emerald-600">
+        <p className="text-xs font-semibold uppercase text-slate-400 dark:text-slate-500">{label}</p>
+        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200/60 dark:border-emerald-800/60 p-2 text-emerald-600 dark:text-emerald-400">
           <Icon size={18} />
         </div>
       </div>
-      <p className="mt-3 text-2xl font-black text-slate-900">{value}</p>
+      <p className="mt-3 text-2xl font-black text-slate-900 dark:text-slate-100">{value}</p>
     </div>
   )
 }

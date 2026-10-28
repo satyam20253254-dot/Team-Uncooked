@@ -127,7 +127,7 @@ export const setAvailability = asyncHandler(async (req, res) => {
           userId: actualOwnerId,
           role: ownerType,
           status: "active",
-          eligibleRoundIds: ownerType === "candidate" ? rounds.map((r) => r._id) : [],
+          eligibleRoundIds: ownerType === "candidate" ? (rounds.length > 0 ? [rounds[0]._id] : []) : [],
           metadata: {
             department: ownerType === "interviewer" ? "Engineering & Tech" : "Computer Science",
             skills: ownerType === "interviewer" ? ["DSA", "React", "Node.js", "System Design"] : ["DSA", "React"],

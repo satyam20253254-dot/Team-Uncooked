@@ -98,9 +98,9 @@ function Rounds() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[.18em] text-amber-700">Coordinator setup</p>
-          <h1 className="mt-1 text-3xl font-bold text-slate-900">Interview rounds</h1>
-          <p className="mt-2 text-sm text-slate-500">Create the stages, dependencies, and skills the scheduler uses to match panels.</p>
+          <p className="text-xs font-bold uppercase tracking-[.18em] text-amber-600 dark:text-amber-400">Coordinator setup</p>
+          <h1 className="mt-1 text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Interview rounds</h1>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Create the stages, dependencies, and skills the scheduler uses to match panels.</p>
         </div>
         <button
           onClick={() => { setError(''); setSuccess(''); setShowForm(true) }}
@@ -111,39 +111,39 @@ function Rounds() {
         </button>
       </header>
 
-      {!activeDrive && <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Create or select an interview drive before setting up rounds.</p>}
-      {error && <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><AlertCircle size={17} />{error}</p>}
-      {success && !error && <p className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"><CheckCircle2 size={17} />{success}</p>}
+      {!activeDrive && <p className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/50 p-4 text-sm text-amber-900 dark:text-amber-300">Create or select an interview drive before setting up rounds.</p>}
+      {error && <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/50 p-4 text-sm text-red-700 dark:text-red-300"><AlertCircle size={17} />{error}</p>}
+      {success && !error && <p className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/50 p-4 text-sm text-emerald-800 dark:text-emerald-300"><CheckCircle2 size={17} />{success}</p>}
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        {loading ? <p className="p-10 text-center text-sm text-slate-400">Loading rounds…</p> : rounds.length === 0 ? (
+      <section className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition">
+        {loading ? <p className="p-10 text-center text-sm text-slate-400 dark:text-slate-500">Loading rounds…</p> : rounds.length === 0 ? (
           <div className="p-12 text-center">
-            <ListOrdered size={32} className="mx-auto text-slate-300" />
-            <h2 className="mt-3 font-semibold text-slate-800">No rounds configured</h2>
-            <p className="mt-1 text-sm text-slate-500">The schedule generator needs at least one round.</p>
-            <button onClick={() => setShowForm(true)} className="mt-4 text-sm font-semibold text-emerald-700 hover:underline">Create the first round</button>
+            <ListOrdered size={32} className="mx-auto text-slate-300 dark:text-slate-600" />
+            <h2 className="mt-3 font-semibold text-slate-800 dark:text-slate-200">No rounds configured</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">The schedule generator needs at least one round.</p>
+            <button onClick={() => setShowForm(true)} className="mt-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">Create the first round</button>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {rounds.map((round, index) => {
               const prerequisiteNames = getPrerequisiteNames(round)
               return (
-                <article key={round._id} className="flex flex-wrap items-center justify-between gap-4 p-5">
+                <article key={round._id} className="flex flex-wrap items-center justify-between gap-4 p-5 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition">
                   <div className="flex items-start gap-4">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-100 bg-emerald-50 text-sm font-bold text-emerald-800">{round.sequence || index + 1}</span>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-100 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/70 text-sm font-bold text-emerald-800 dark:text-emerald-300">{round.sequence || index + 1}</span>
                     <div>
-                      <h2 className="font-semibold text-slate-900">{round.name}</h2>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                      <h2 className="font-bold text-slate-900 dark:text-slate-100">{round.name}</h2>
+                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
                         <span className="inline-flex items-center gap-1"><Clock3 size={13} />{round.durationMinutes} min</span>
                         <span>{round.isRequired ? 'Required' : 'Optional'}</span>
                         {round.requiredSkills?.length > 0 && <span>Skills: {round.requiredSkills.join(', ')}</span>}
                       </div>
-                      <p className="mt-1.5 text-xs text-slate-500">
-                        Prerequisites: <span className="font-medium text-slate-700">{prerequisiteNames.length ? prerequisiteNames.join(', ') : 'None'}</span>
+                      <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                        Prerequisites: <span className="font-semibold text-slate-700 dark:text-slate-300">{prerequisiteNames.length ? prerequisiteNames.join(', ') : 'None'}</span>
                       </p>
                     </div>
                   </div>
-                  <button onClick={() => removeRound(round)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Remove ${round.name}`}><Trash2 size={16} /></button>
+                  <button onClick={() => removeRound(round)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-600 dark:hover:text-red-400 transition" aria-label={`Remove ${round.name}`}><Trash2 size={16} /></button>
                 </article>
               )
             })}
@@ -152,42 +152,42 @@ function Rounds() {
       </section>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4">
-          <section className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-5 flex items-start justify-between">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 backdrop-blur-sm p-4">
+          <section className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Add interview round</h2>
-                <p className="mt-1 text-xs text-slate-500">This becomes round {nextSequence} in the sequence.</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Add interview round</h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">This becomes round {nextSequence} in the sequence.</p>
               </div>
-              <button onClick={() => setShowForm(false)} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+              <button onClick={() => setShowForm(false)} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={18} /></button>
             </div>
             <form onSubmit={submitRound} className="space-y-4">
-              <label className="block text-sm font-medium text-slate-700">Round name
-                <input required minLength={2} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Technical interview" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-500" />
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Round name
+                <input required minLength={2} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Technical interview" className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-emerald-500" />
               </label>
-              <label className="block text-sm font-medium text-slate-700">Duration in minutes
-                <input type="number" required min="15" step="1" value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-500" />
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Duration in minutes
+                <input type="number" required min="15" step="1" value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500" />
               </label>
-              <fieldset className="rounded-xl border border-slate-200 p-3">
-                <legend className="px-1 text-sm font-semibold text-slate-700">Prerequisite rounds</legend>
-                <p className="mb-2 text-xs text-slate-500">Candidates must complete every selected round before this one.</p>
-                {rounds.length === 0 ? <p className="py-2 text-xs text-slate-400">No earlier rounds available.</p> : (
+              <fieldset className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+                <legend className="px-1 text-sm font-bold text-slate-700 dark:text-slate-300">Prerequisite rounds</legend>
+                <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">Candidates must complete every selected round before this one.</p>
+                {rounds.length === 0 ? <p className="py-2 text-xs text-slate-400 dark:text-slate-500">No earlier rounds available.</p> : (
                   <div className="max-h-36 space-y-2 overflow-y-auto">
                     {rounds.map((round) => (
-                      <label key={round._id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                      <label key={round._id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
                         <input type="checkbox" checked={form.prerequisiteRound.includes(round._id)} onChange={() => togglePrerequisite(round._id)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-                        <span><span className="font-medium">Round {round.sequence}:</span> {round.name}</span>
+                        <span><span className="font-semibold text-slate-900 dark:text-slate-100">Round {round.sequence}:</span> {round.name}</span>
                       </label>
                     ))}
                   </div>
                 )}
               </fieldset>
-              <label className="block text-sm font-medium text-slate-700">Required skills <span className="font-normal text-slate-400">(comma-separated; leave blank for any interviewer)</span>
-                <input value={form.requiredSkills} onChange={(event) => setForm({ ...form, requiredSkills: event.target.value })} placeholder="System design, React" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-500" />
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Required skills <span className="font-normal text-slate-400 dark:text-slate-500">(comma-separated; leave blank for any interviewer)</span>
+                <input value={form.requiredSkills} onChange={(event) => setForm({ ...form, requiredSkills: event.target.value })} placeholder="System design, React" className="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-emerald-500" />
               </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.isRequired} onChange={(event) => setForm({ ...form, isRequired: event.target.checked })} />Required round</label>
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm">Cancel</button>
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" checked={form.isRequired} onChange={(event) => setForm({ ...form, isRequired: event.target.checked })} />Required round</label>
+              <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+                <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
                 <button disabled={saving} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 disabled:opacity-60">{saving ? 'Saving…' : 'Save round'}</button>
               </div>
             </form>

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
 import { DriveProvider } from './context/DriveContext'
 import DashboardLayout from './layouts/DashboardLayout'
@@ -15,7 +16,7 @@ import { useAuth } from './context/AuthContext'
 
 function ProtectedWorkspace() {
   const { user, loading } = useAuth()
-  if (loading) return <div className="grid min-h-screen place-items-center bg-[#f6f5f1] text-sm text-slate-500">Loading your workspace…</div>
+  if (loading) return <div className="grid min-h-screen place-items-center bg-[#f6f5f1] dark:bg-slate-950 text-sm text-slate-500">Loading your workspace…</div>
   return user ? <DashboardLayout /> : <Navigate to="/signin" replace />
 }
 
@@ -27,9 +28,10 @@ function RoleGate({ allowed }) {
 
 function App() {
   return (
-    <AuthProvider>
-      <DriveProvider>
-        <BrowserRouter>
+    <ThemeProvider>
+      <AuthProvider>
+        <DriveProvider>
+          <BrowserRouter>
           <Routes>
             <Route path="/signin" element={<SignIn />} />
             <Route element={<ProtectedWorkspace />}>
@@ -58,6 +60,7 @@ function App() {
         </BrowserRouter>
       </DriveProvider>
     </AuthProvider>
+    </ThemeProvider>
   )
 }
 

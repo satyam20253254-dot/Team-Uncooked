@@ -169,3 +169,52 @@ test("dependent rounds stay unassigned when their prerequisite cannot be placed"
   assert.ok(unassigned.some((item) => item.roundId === "round-1"));
   assert.ok(unassigned.some((item) => item.roundId === "round-2" && item.reason.includes("prerequisite")));
 });
+
+test("when candidate completes round 1, round 2 is unlocked and scheduled conflict-free", () => {
+  const rounds = [
+    { _id: "round-1", name: "OA", sequence: 1, durationMinutes: 30, requiredSkills: ["DSA"] },
+    { _id: "round-2", name: "HR", sequence: 2, durationMinutes: 45, requiredSkills: ["Communication"], prerequisiteRound: ["round-1"] },
+  ];
+  const completedInterviews = [
+    {
+      candidate: "candidate-1",
+      round: "round-1",
+      status: "completed",
+      startTime: new Date("2026-10-26T09:00:00.000Z"),
+      endTime: new Date("2026-10-26T09:30:00.000Z"),
+    },
+  ];
+  const candidateParticipants = [
+    {
+      userId: { _id: "candidate-1", name: "Candidate One" },
+      eligibleRoundIds: ["round-1", "round-2"],
+    },
+  ];
+  const interviewerParticipants = [
+    {
+      userId: { _id: "interviewer-hr", name: "HR Lead" },
+      metadata: { skills: ["Communication"], maxDailyInterviews: 4 },
+    },
+  ];
+  const availabilities = [
+    window("candidate", "candidate-1", "2026-10-27T10:00:00.000Z", "2026-10-27T12:00:00.000Z"),
+    window("interviewer", "interviewer-hr", "2026-10-27T10:00:00.000Z", "2026-10-27T12:00:00.000Z"),
+    window("room", "room-1", "2026-10-27T10:00:00.000Z", "2026-10-27T12:00:00.000Z"),
+  ];
+
+  const plan = buildSchedulePlan({
+    rounds,
+    candidateParticipants,
+    interviewerParticipants,
+    rooms: [{ _id: "room-1" }],
+    availabilities,
+    completedInterviews,
+    now,
+  });
+
+  assert.equal(plan.assignments.length, 1);
+  assert.equal(plan.assignments[0].candidateId, "candidate-1");
+  assert.equal(plan.assignments[0].roundId, "round-2");
+  assert.equal(plan.assignments[0].roundName, "HR");
+});
+
