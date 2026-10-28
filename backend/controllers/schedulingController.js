@@ -212,6 +212,9 @@ export const getAvailableSlotsForRound = asyncHandler(async (req, res) => {
       .filter((item) => item.candidate.toString() === req.user._id.toString())
       .map((item) => item.round.toString())
   );
+  if (completedRoundIds.has(roundId)) {
+    throw new ApiError(409, "You have already completed this interview round.");
+  }
   if ((round.prerequisiteRound || []).some((id) => !completedRoundIds.has(id.toString()))) {
     throw new ApiError(409, "Complete the prerequisite interview round before booking this one.");
   }
@@ -383,6 +386,16 @@ export const selfBookSlot = asyncHandler(async (req, res) => {
       }
     }
 
+    const alreadyCompleted = await Interview.exists({
+      drive: driveId,
+      candidate: req.user._id,
+      round: roundId,
+      status: "completed",
+    });
+    if (alreadyCompleted) {
+      throw new ApiError(409, "You have already completed this interview round.");
+    }
+
     const [interviewerWindow, roomWindow, latestPublished, latestDraft] = await Promise.all([
       Availability.exists({
         drive: driveId,
@@ -488,6 +501,11 @@ export const selfBookSlot = asyncHandler(async (req, res) => {
       endTime: slotEnd,
       status: "scheduled",
     });
+
+    await ScheduleVersion.updateMany(
+      { drive: driveId },
+      { $pull: { unassignedInterviews: { candidateId: req.user._id, roundId } } }
+    );
 
     await notifyDriveEvent({
       driveId,
@@ -842,16 +860,31 @@ export const getScheduleVersions = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Drive not found");
   }
 
-  const versions = await ScheduleVersion.find({
-    drive: driveId,
-  }).sort({ versionNumber: -1 });
+  const [versions, currentInterviews] = await Promise.all([
+    ScheduleVersion.find({ drive: driveId }).sort({ versionNumber: -1 }).lean(),
+    Interview.find({
+      drive: driveId,
+      status: { $in: ["scheduled", "rescheduled", "completed"] },
+    }).select("candidate round status"),
+  ]);
+
+  const scheduledOrDoneKeys = new Set(
+    currentInterviews.map((i) => `${i.candidate?.toString()}_${i.round?.toString()}`)
+  );
+
+  const reconciledVersions = versions.map((v) => ({
+    ...v,
+    unassignedInterviews: (v.unassignedInterviews || []).filter(
+      (item) => !scheduledOrDoneKeys.has(`${item.candidateId?.toString()}_${item.roundId?.toString()}`)
+    ),
+  }));
 
   return res.status(200).json(
     new ApiResponse(
       200,
       {
-        count: versions.length,
-        versions,
+        count: reconciledVersions.length,
+        versions: reconciledVersions,
       },
       "Schedule versions fetched successfully"
     )
@@ -1007,3 +1040,104 @@ export const getMyInterviews = asyncHandler(async (req, res) => {
     )
   );
 });
+
+// Candidate Pipeline Progression Status (PS Multi-Stage Pipeline Orchestrator)
+export const getMyPipelineStatus = asyncHandler(async (req, res) => {
+  const { driveId } = req.params;
+  if (!mongoose.isValidObjectId(driveId)) throw new ApiError(400, "Invalid drive ID");
+
+  const [drive, rounds, participant, myInterviews] = await Promise.all([
+    Drive.findById(driveId),
+    Round.find({ driveId }).sort({ sequence: 1 }),
+    DriveParticipant.findOne({ driveId, userId: req.user._id, role: "candidate" }),
+    Interview.find({ drive: driveId, candidate: req.user._id })
+      .populate("interviewer", "name email")
+      .populate("room", "name isVirtual meetingLink")
+      .populate("round", "name sequence durationMinutes")
+      .sort({ startTime: -1 }),
+  ]);
+
+  if (!drive) throw new ApiError(404, "Drive not found");
+  if (!participant) {
+    return res.status(200).json(
+      new ApiResponse(200, {
+        isEnrolled: false,
+        message: "You are not enrolled as a candidate in this drive.",
+        rounds: [],
+      })
+    );
+  }
+
+  const completedInterviews = myInterviews.filter((i) => i.status === "completed");
+  const completedRoundIds = new Set(
+    completedInterviews.map((i) => (i.round?._id ? i.round._id.toString() : i.round.toString()))
+  );
+
+  const scheduledInterviews = myInterviews.filter((i) => ["scheduled", "rescheduled"].includes(i.status));
+
+  const eligibleSet = new Set((participant.eligibleRoundIds || []).map((id) => id.toString()));
+
+  const enrichedRounds = rounds.map((round) => {
+    const roundId = round._id.toString();
+    const isCompleted = completedRoundIds.has(roundId);
+    const activeScheduled = scheduledInterviews.find(
+      (i) => (i.round?._id ? i.round._id.toString() : i.round.toString()) === roundId
+    );
+    const isScheduled = !!activeScheduled;
+
+    const prerequisites = round.prerequisiteRound || [];
+    const prerequisitesMet = prerequisites.every((pId) => completedRoundIds.has(pId.toString()));
+
+    const isEligible = (eligibleSet.size === 0 ? round.sequence === 1 : eligibleSet.has(roundId)) && prerequisitesMet;
+
+    let roundStatus = "locked";
+    if (participant.status === "disqualified") {
+      roundStatus = isCompleted ? "completed" : "disqualified";
+    } else if (isCompleted) {
+      roundStatus = "completed";
+    } else if (isScheduled) {
+      roundStatus = "scheduled";
+    } else if (isEligible) {
+      roundStatus = "action_required";
+    } else {
+      roundStatus = "locked";
+    }
+
+    return {
+      _id: round._id,
+      name: round.name,
+      sequence: round.sequence,
+      durationMinutes: round.durationMinutes,
+      requiredSkills: round.requiredSkills,
+      description: round.description,
+      status: roundStatus,
+      isCompleted,
+      isScheduled,
+      scheduledInterview: activeScheduled || completedInterviews.find((i) => (i.round?._id ? i.round._id.toString() : i.round.toString()) === roundId) || null,
+    };
+  });
+
+  const nextRoundToBook = enrichedRounds.find((r) => r.status === "action_required") || null;
+  const isCompletedAll = enrichedRounds.length > 0 && enrichedRounds.every((r) => r.status === "completed");
+  const isDisqualified = participant.status === "disqualified";
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        isEnrolled: true,
+        participantStatus: participant.status,
+        currentRoundName: participant.metadata?.currentRound || nextRoundToBook?.name || null,
+        lastPassedRound: participant.metadata?.lastPassedRound || null,
+        isDisqualified,
+        eliminatedAtRound: participant.metadata?.eliminatedAtRound || null,
+        isCompletedAll,
+        pipelineResult: participant.metadata?.pipelineResult || (isCompletedAll ? "selected" : isDisqualified ? "rejected" : "in_progress"),
+        nextRoundToBook,
+        rounds: enrichedRounds,
+      },
+      "Candidate recruitment pipeline status fetched successfully"
+    )
+  );
+});
+

@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   CalendarCheck2,
   Award,
-  Layers,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -25,20 +24,11 @@ function SignIn() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // Demo accounts helper
-  const handleQuickFill = (demoRole, demoEmail, demoPass) => {
-    setError('')
-    setMode('signin')
-    setRole(demoRole)
-    setEmail(demoEmail)
-    setPassword(demoPass)
-  }
-
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')
     if (mode === 'signup' && role === 'coordinator') {
-      setError('The coordinator account is pre-provisioned. Use the Coordinator quick login or sign in directly.')
+      setError('The coordinator account is pre-provisioned. Please sign in with coordinator credentials.')
       return
     }
     setBusy(true)
@@ -131,42 +121,6 @@ function SignIn() {
               <div>
                 <p className="font-bold text-white text-base">The Ancient One’s Trials</p>
                 <p className="text-[11px] text-emerald-400 font-medium">Interview Orchestration</p>
-              </div>
-            </div>
-
-            {/* Quick Demo Switcher */}
-            <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-950/30 p-3.5 backdrop-blur">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
-                  <Layers size={13} />
-                  1-Click Quick Demo Sign In
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickFill('coordinator', 'coordinator@ancienttrials.edu', 'AncientOne#2026')}
-                  className="rounded-xl border border-emerald-500/40 bg-slate-800/80 p-2 text-center transition hover:bg-emerald-600/30 hover:border-emerald-400 active:scale-95 text-left"
-                >
-                  <p className="text-[11px] font-bold text-emerald-200">Coordinator</p>
-                  <p className="text-[10px] text-slate-400 truncate">Admin Lead</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFill('interviewer', 'interviewer@uncooked.edu', 'Password#123')}
-                  className="rounded-xl border border-emerald-500/30 bg-slate-800/80 p-2 text-center transition hover:bg-emerald-600/30 hover:border-emerald-400 active:scale-95 text-left"
-                >
-                  <p className="text-[11px] font-bold text-emerald-300">Interviewer</p>
-                  <p className="text-[10px] text-slate-400 truncate">Panel Review</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickFill('candidate', 'candidate@uncooked.edu', 'Password#123')}
-                  className="rounded-xl border border-amber-500/30 bg-slate-800/80 p-2 text-center transition hover:bg-amber-600/30 hover:border-amber-400 active:scale-95 text-left"
-                >
-                  <p className="text-[11px] font-bold text-amber-300">Candidate</p>
-                  <p className="text-[10px] text-slate-400 truncate">Self-Book</p>
-                </button>
               </div>
             </div>
 

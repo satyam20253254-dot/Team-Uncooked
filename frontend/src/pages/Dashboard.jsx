@@ -13,6 +13,10 @@ import {
   Plus,
   Video,
   ArrowRight,
+  CheckCircle2,
+  Lock,
+  AlertCircle,
+  Trophy,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api, { API_BASE_URL } from '../services/api'
@@ -28,6 +32,7 @@ function Dashboard() {
   const [interviewers, setInterviewers] = useState([])
   const [rooms, setRooms] = useState([])
   const [interviews, setInterviews] = useState([])
+  const [candidatePipeline, setCandidatePipeline] = useState(null)
   const [loading, setLoading] = useState(true)
   const [driveName, setDriveName] = useState('')
   const driveCompany = 'Apex Innovations & Tech Corp'
@@ -41,8 +46,14 @@ function Dashboard() {
     setLoading(true)
     try {
       if (role === 'candidate' || role === 'interviewer') {
-        const sessions = await api.get('/my-interviews')
+        const [sessions, pipeRes] = await Promise.all([
+          api.get('/my-interviews'),
+          role === 'candidate'
+            ? api.get(`/drives/${activeDrive._id}/my-pipeline`).catch(() => null)
+            : Promise.resolve(null),
+        ])
         setInterviews(sessions?.data?.interviews || [])
+        setCandidatePipeline(pipeRes?.data || null)
         return
       }
 
@@ -156,6 +167,174 @@ function Dashboard() {
           </div>
         </section>
 
+        {/* Candidate Recruitment Pipeline Progression Stepper (PS Victory Tier: Multi-Stage Pipeline Orchestrator) */}
+        {isCandidate && candidatePipeline?.rounds && candidatePipeline.rounds.length > 0 && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center border-b border-slate-100 pb-4">
+              <div>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 uppercase border border-emerald-100">
+                  Multi-Stage Pipeline Orchestrator
+                </span>
+                <h2 className="mt-1 text-lg font-bold text-slate-900">
+                  My Recruitment Progression
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {candidatePipeline.lastPassedRound
+                    ? `Cleared: ${candidatePipeline.lastPassedRound} · Current Stage: ${candidatePipeline.currentRoundName || 'Finalizing'}`
+                    : 'Advance through each interview round sequentially to reach the offer stage.'}
+                </p>
+              </div>
+
+              {candidatePipeline.nextRoundToBook && (
+                <Link
+                  to={`/self-book?roundId=${candidatePipeline.nextRoundToBook._id}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 hover:bg-amber-400 transition"
+                >
+                  <Sparkles size={14} />
+                  <span>Book {candidatePipeline.nextRoundToBook.name} Slot</span>
+                  <ArrowRight size={14} />
+                </Link>
+              )}
+            </div>
+
+            {/* Stage Callout Alerts */}
+            {candidatePipeline.nextRoundToBook && (
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-900">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-amber-200 text-amber-900 font-bold">
+                    ★
+                  </span>
+                  <div>
+                    <p className="font-bold text-sm text-amber-950">
+                      Round {candidatePipeline.nextRoundToBook.sequence} ({candidatePipeline.nextRoundToBook.name}) Unlocked!
+                    </p>
+                    <p className="mt-0.5 text-amber-800">
+                      You passed the earlier evaluation and qualify to book a slot for this {candidatePipeline.nextRoundToBook.durationMinutes}-minute session.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to={`/self-book?roundId=${candidatePipeline.nextRoundToBook._id}`}
+                  className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 transition"
+                >
+                  Reserve Slot →
+                </Link>
+              </div>
+            )}
+
+            {candidatePipeline.isCompletedAll && (
+              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900">
+                <Trophy size={20} className="text-emerald-600 shrink-0" />
+                <p className="font-bold text-sm">
+                  Congratulations! You have completed all rounds in this recruitment drive with passing marks!
+                </p>
+              </div>
+            )}
+
+            {candidatePipeline.isDisqualified && (
+              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800">
+                <AlertCircle size={20} className="text-rose-600 shrink-0" />
+                <p className="font-semibold text-sm">
+                  Placement Status: Eliminated at {candidatePipeline.eliminatedAtRound || 'interview stage'}.
+                </p>
+              </div>
+            )}
+
+            {/* Stepper Pipeline */}
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {candidatePipeline.rounds.map((round) => {
+                const isCompleted = round.status === 'completed'
+                const isScheduled = round.status === 'scheduled'
+                const isActionRequired = round.status === 'action_required'
+                const isLocked = round.status === 'locked'
+
+                return (
+                  <div
+                    key={round._id}
+                    className={`relative flex flex-col justify-between rounded-2xl border p-4 transition ${
+                      isActionRequired
+                        ? 'border-amber-300 bg-amber-50/30 ring-2 ring-amber-400/40 shadow-sm'
+                        : isCompleted
+                        ? 'border-emerald-200 bg-emerald-50/20'
+                        : isScheduled
+                        ? 'border-blue-200 bg-blue-50/20'
+                        : 'border-slate-200 bg-slate-50/60 opacity-80'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase">
+                          Round {round.sequence}
+                        </span>
+                        {isCompleted && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                            <CheckCircle2 size={11} />
+                            Passed
+                          </span>
+                        )}
+                        {isScheduled && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+                            <CalendarCheck size={11} />
+                            Booked
+                          </span>
+                        )}
+                        {isActionRequired && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-extrabold text-slate-950 animate-pulse">
+                            <Sparkles size={11} />
+                            Book Slot
+                          </span>
+                        )}
+                        {isLocked && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                            <Lock size={10} />
+                            Locked
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="mt-2 text-base font-bold text-slate-900">
+                        {round.name}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Duration: {round.durationMinutes} mins · {round.requiredSkills?.join(', ') || 'General Panel'}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100">
+                      {isActionRequired ? (
+                        <Link
+                          to={`/self-book?roundId=${round._id}`}
+                          className="flex items-center justify-center gap-1.5 w-full rounded-xl bg-emerald-600 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-500 transition"
+                        >
+                          <span>Select Available Slot</span>
+                          <ArrowRight size={13} />
+                        </Link>
+                      ) : isScheduled ? (
+                        <Link
+                          to="/self-book"
+                          className="flex items-center justify-center gap-1.5 w-full rounded-xl border border-blue-200 bg-white py-2 text-xs font-bold text-blue-700 hover:bg-blue-50 transition"
+                        >
+                          <span>View Slot Details</span>
+                        </Link>
+                      ) : isCompleted ? (
+                        <div className="flex items-center justify-center gap-1 text-xs font-semibold text-emerald-700 py-1">
+                          <CheckCircle2 size={14} />
+                          <span>Evaluation Cleared</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1 text-xs text-slate-400 py-1">
+                          <Lock size={13} />
+                          <span>Requires earlier rounds</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-3">
           <SummaryCard
             title="Upcoming Sessions"
@@ -177,20 +356,20 @@ function Dashboard() {
           />
         </div>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
-              <h2 className="font-bold text-slate-900 text-base">
+              <h2 className="font-bold text-slate-900 dark:text-slate-100 text-base">
                 {isCandidate ? 'My Confirmed Interview Slots' : 'My Assigned Panel Sessions'}
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                 {isCandidate
                   ? 'Your scheduled times and venue details across interview stages'
                   : 'Interviews assigned to you for evaluation in this drive'}
               </p>
             </div>
             {!isCandidate && (
-              <Link className="text-xs font-bold text-emerald-600 hover:underline" to="/evaluations">
+              <Link className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline" to="/evaluations">
                 Open Scorecard Matrix →
               </Link>
             )}
@@ -200,9 +379,9 @@ function Dashboard() {
             <p className="py-12 text-center text-xs text-slate-400">Loading your sessions…</p>
           ) : upcoming.length === 0 ? (
             <div className="py-12 text-center">
-              <CalendarCheck size={36} className="mx-auto text-slate-300" />
-              <p className="mt-2 text-sm font-semibold text-slate-700">No upcoming interviews scheduled</p>
-              <p className="mt-1 text-xs text-slate-500">
+              <CalendarCheck size={36} className="mx-auto text-slate-300 dark:text-slate-600" />
+              <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">No upcoming interviews scheduled</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {isCandidate
                   ? 'Open the Self-Booking Portal to choose an available time slot.'
                   : 'Sessions will appear here once the coordinator generates or publishes the schedule.'}
@@ -217,19 +396,19 @@ function Dashboard() {
               )}
             </div>
           ) : (
-            <div className="mt-4 divide-y divide-slate-100">
+            <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
               {upcoming.map((item) => (
                 <div key={item._id} className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center">
                   <div>
-                    <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 uppercase border border-emerald-100">
+                    <span className="rounded bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 uppercase border border-emerald-100 dark:border-emerald-800">
                       {item.round?.name || 'Interview Round'}
                     </span>
-                    <p className="mt-1 text-sm font-bold text-slate-900">
+                    <p className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
                       {new Date(item.startTime).toLocaleDateString()} at{' '}
                       {new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -{' '}
                       {new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {isCandidate
                         ? `Panelist: ${item.interviewer?.name || 'Assigned Panel'}`
                         : `Candidate: ${item.candidate?.name || 'Assigned Student'}`}{' '}
@@ -240,7 +419,7 @@ function Dashboard() {
                     <a
                       href={`${API_BASE_URL}/interviews/${item._id}/calendar.ics`}
                       download
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                     >
                       <Download size={13} />
                       .ics Invite
@@ -416,11 +595,11 @@ function Dashboard() {
       </div>
 
       {/* Live Interviews Table */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-bold text-slate-900 text-base">Scheduled Live Interviews</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="font-bold text-slate-900 dark:text-slate-100 text-base">Scheduled Live Interviews</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Active sessions across rounds with instant calendar (.ics) sync
             </p>
           </div>
@@ -431,7 +610,7 @@ function Dashboard() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search candidate, round or panel..."
-              className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:w-64"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:w-64"
             />
           </div>
         </div>
@@ -441,8 +620,8 @@ function Dashboard() {
             <div className="py-12 text-center text-xs text-slate-400">Loading interview sessions...</div>
           ) : filteredInterviews.length === 0 ? (
             <div className="py-12 text-center">
-              <CalendarDays size={36} className="mx-auto text-slate-300" />
-              <p className="mt-2 text-sm font-semibold text-slate-700">No scheduled sessions found</p>
+              <CalendarDays size={36} className="mx-auto text-slate-300 dark:text-slate-600" />
+              <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">No scheduled sessions found</p>
               <p className="mt-0.5 text-xs text-slate-400">
                 Click <strong>Schedule Engine</strong> to generate a constraint-matched schedule.
               </p>
@@ -457,7 +636,7 @@ function Dashboard() {
           ) : (
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider font-semibold">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">
                   <th className="px-3 py-3">Candidate</th>
                   <th className="px-3 py-3">Round</th>
                   <th className="px-3 py-3">Interviewer</th>
@@ -467,17 +646,17 @@ function Dashboard() {
                   <th className="px-3 py-3 text-right">Calendar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredInterviews.slice(0, 10).map((interview) => (
-                  <tr key={interview._id} className="hover:bg-slate-50 transition">
+                  <tr key={interview._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
                     <td className="px-3 py-3.5">
-                      <p className="font-bold text-slate-900">{interview.candidate?.name || 'Candidate'}</p>
+                      <p className="font-bold text-slate-900 dark:text-slate-100">{interview.candidate?.name || 'Candidate'}</p>
                       <p className="text-[11px] text-slate-400">{interview.candidate?.email}</p>
                     </td>
-                    <td className="px-3 py-3.5 font-medium text-slate-700">{interview.round?.name || 'Round'}</td>
-                    <td className="px-3 py-3.5 font-semibold text-slate-800">{interview.interviewer?.name || 'Panel'}</td>
+                    <td className="px-3 py-3.5 font-medium text-slate-700 dark:text-slate-300">{interview.round?.name || 'Round'}</td>
+                    <td className="px-3 py-3.5 font-semibold text-slate-800 dark:text-slate-200">{interview.interviewer?.name || 'Panel'}</td>
                     <td className="px-3 py-3.5">
-                      <p className="font-semibold text-slate-800">
+                      <p className="font-semibold text-slate-800 dark:text-slate-200">
                         {new Date(interview.startTime).toLocaleDateString()}
                       </p>
                       <p className="text-[11px] text-slate-400">
@@ -491,23 +670,23 @@ function Dashboard() {
                           href={interview.room?.meetingLink || '#'}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-teal-700 font-semibold hover:underline"
+                          className="inline-flex items-center gap-1 text-teal-700 dark:text-teal-400 font-semibold hover:underline"
                         >
                           <Video size={13} />
                           <span>Virtual Link</span>
                         </a>
                       ) : (
-                        <span className="text-slate-600 font-medium">{interview.room?.name || 'Assigned Room'}</span>
+                        <span className="text-slate-600 dark:text-slate-300 font-medium">{interview.room?.name || 'Assigned Room'}</span>
                       )}
                     </td>
                     <td className="px-3 py-3.5">
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase border ${
                           interview.status === 'scheduled'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                             : interview.status === 'rescheduled'
-                            ? 'bg-amber-50 text-amber-700 border-amber-200'
-                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                            ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         {interview.status}
@@ -518,7 +697,7 @@ function Dashboard() {
                         href={`${API_BASE_URL}/interviews/${interview._id}/calendar.ics`}
                         download
                         title="Download RFC-5545 .ics Calendar Invite"
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
                         <Download size={12} />
                         <span>.ics</span>
@@ -539,13 +718,13 @@ function SummaryCard({ title, value, subtitle, icon, trend }) {
   return (
     <div className="surface-card p-5">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</p>
-        <div className="rounded-xl bg-slate-100/80 p-2 text-slate-700">{icon}</div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400">{title}</p>
+        <div className="rounded-xl bg-slate-100/80 dark:bg-slate-800 p-2 text-slate-700 dark:text-slate-300">{icon}</div>
       </div>
-      <p className="mt-2 text-2xl font-black text-slate-900 tracking-tight">{value}</p>
-      <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+      <p className="mt-2 text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">{value}</p>
+      <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
         <span className="truncate">{subtitle}</span>
-        {trend && <span className="font-semibold text-emerald-700 shrink-0">{trend}</span>}
+        {trend && <span className="font-semibold text-emerald-700 dark:text-emerald-400 shrink-0">{trend}</span>}
       </div>
     </div>
   )

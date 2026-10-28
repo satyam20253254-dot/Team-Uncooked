@@ -9,6 +9,7 @@ import {
   getInterviewsByVersion,
   getAvailableSlotsForRound,
   selfBookSlot,
+  getMyPipelineStatus,
 } from "../controllers/schedulingController.js";
 
 import { verifyJWT } from "../middleware/auth.middleware.js";
@@ -64,6 +65,14 @@ router.post(
   verifyJWT,
   authorizeRoles("candidate"),
   selfBookSlot
+);
+
+// Multi-Stage Pipeline Progression status for candidate
+router.get(
+  "/:driveId/my-pipeline",
+  verifyJWT,
+  authorizeRoles("candidate", "admin", "coordinator"),
+  getMyPipelineStatus
 );
 
 export default router;

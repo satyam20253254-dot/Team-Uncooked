@@ -6,6 +6,7 @@ import {
   loginUser,
   logoutUser,
   getCurrentUser,
+  updateUserProfile,
   getAllUsers,
   createParticipantUser,
 } from "../controllers/authController.js";
@@ -23,7 +24,14 @@ router.post("/login", loginUser);
 
 router.route("/logout").post(verifyJWT, logoutUser);
 
-router.route("/me").get(verifyJWT, getCurrentUser);
+// User profile endpoints (get and update current authenticated user)
+router.route("/me")
+  .get(verifyJWT, getCurrentUser)
+  .patch(verifyJWT, updateUserProfile);
+
+router.route("/profile")
+  .get(verifyJWT, getCurrentUser)
+  .patch(verifyJWT, updateUserProfile);
 
 // Coordinator/Admin user discovery (for adding interviewers & candidates to drives)
 router.route("/users")

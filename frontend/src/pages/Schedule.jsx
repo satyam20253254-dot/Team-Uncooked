@@ -62,11 +62,22 @@ function Schedule() {
         // API sorts by version number descending; always show the newest draft or published version.
         const target = versions[0]
         setActiveVersion(target)
-        setUnassigned(target.unassignedInterviews || [])
 
         // Fetch interviews for this version
         const intRes = await api.get(`/drives/${activeDrive._id}/schedules/${target._id}/interviews`)
-        setInterviews(intRes?.data?.interviews || [])
+        const scheduledList = intRes?.data?.interviews || []
+        setInterviews(scheduledList)
+
+        // Reconcile: exclude candidate-round entries that are already scheduled or completed
+        const scheduledKeys = new Set(
+          scheduledList
+            .filter((i) => ['scheduled', 'rescheduled', 'completed'].includes(i.status))
+            .map((i) => `${i.candidate?._id || i.candidate}_${i.round?._id || i.round}`)
+        )
+        const activeUnassigned = (target.unassignedInterviews || []).filter(
+          (item) => !scheduledKeys.has(`${item.candidateId}_${item.roundId}`)
+        )
+        setUnassigned(activeUnassigned)
       } else {
         setActiveVersion(null)
         setInterviews([])
@@ -280,7 +291,7 @@ function Schedule() {
         </section>
       )}
 
-      {unassigned.length > 0 && (
+      {isCoordinator && unassigned.length > 0 && (
         <section className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
           <div className="border-b border-amber-100 bg-amber-50/70 px-5 py-4">
             <h2 className="font-bold text-amber-950">Interviews needing a time ({unassigned.length})</h2>
@@ -326,30 +337,30 @@ function Schedule() {
       <WeeklyCalendar interviews={calendarAdaptedInterviews} />
 
       {/* Schedule Table & Operations */}
-      <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+      <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-bold text-slate-900">Scheduled Interviews</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="font-bold text-slate-900 dark:text-slate-100">Scheduled Interviews</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {interviews.length} interview{interviews.length === 1 ? '' : 's'} in this schedule
             </p>
           </div>
 
           <div className="flex flex-col gap-2.5 sm:flex-row">
-            <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 px-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3">
               <Search size={16} className="shrink-0 text-slate-400" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search candidate, round or panel..."
-                className="w-full min-w-0 py-2 text-xs outline-none"
+                className="w-full min-w-0 py-2 text-xs text-slate-900 dark:text-slate-100 outline-none"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-amber-400"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 outline-none focus:border-amber-400"
             >
               <option value="All">All Statuses</option>
               <option value="scheduled">Scheduled</option>
@@ -364,8 +375,8 @@ function Schedule() {
             <div className="py-12 text-center text-xs text-slate-400">Loading schedule...</div>
           ) : filteredInterviews.length === 0 ? (
             <div className="py-12 text-center">
-              <CalendarDays size={36} className="mx-auto text-slate-300" />
-              <p className="mt-2 text-sm font-semibold text-slate-700">
+              <CalendarDays size={36} className="mx-auto text-slate-300 dark:text-slate-600" />
+              <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {isInterviewer ? 'No interviews assigned to you' : 'No interviews in this version'}
               </p>
               {!isInterviewer && (
@@ -377,7 +388,7 @@ function Schedule() {
           ) : (
             <table className="w-full min-w-[850px] text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
                   <th className="px-3 py-3">Candidate</th>
                   <th className="px-3 py-3">Round</th>
                   <th className="px-3 py-3">Interviewer</th>
@@ -387,7 +398,7 @@ function Schedule() {
                   <th className="px-3 py-3 text-right">Actions & Calendar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredInterviews.map((item) => {
                   const sTime = new Date(item.startTime)
                   const eTime = new Date(item.endTime)
@@ -395,21 +406,21 @@ function Schedule() {
                   const timeRange = `${sTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${eTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
 
                   return (
-                    <tr key={item._id} className="hover:bg-slate-50 transition">
+                    <tr key={item._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
                       <td className="px-3 py-3.5">
-                        <p className="font-bold text-slate-900">{item.candidate?.name || 'Candidate'}</p>
+                        <p className="font-bold text-slate-900 dark:text-slate-100">{item.candidate?.name || 'Candidate'}</p>
                         <p className="text-[11px] text-slate-400">{item.candidate?.email}</p>
                       </td>
-                      <td className="px-3 py-3.5 font-medium text-slate-700">
+                      <td className="px-3 py-3.5 font-medium text-slate-700 dark:text-slate-300">
                         {item.round?.name || 'Interview'}
                       </td>
                       <td className="px-3 py-3.5">
-                        <p className="font-semibold text-slate-800">{item.interviewer?.name || 'Panel'}</p>
+                        <p className="font-semibold text-slate-800 dark:text-slate-200">{item.interviewer?.name || 'Panel'}</p>
                         <p className="text-[11px] text-slate-400">{item.interviewer?.email}</p>
                       </td>
                       <td className="px-3 py-3.5">
-                        <p className="font-medium text-slate-800">{dateStr}</p>
-                        <p className="text-[11px] text-slate-500">{timeRange}</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{dateStr}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{timeRange}</p>
                       </td>
                       <td className="px-3 py-3.5">
                         {item.room?.isVirtual ? (
@@ -417,23 +428,23 @@ function Schedule() {
                             href={item.room?.meetingLink || '#'}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-teal-700 font-semibold hover:underline"
+                            className="inline-flex items-center gap-1 text-teal-700 dark:text-teal-400 font-semibold hover:underline"
                           >
                             <Video size={13} />
                             <span>Meet Link</span>
                           </a>
                         ) : (
-                          <span className="text-slate-600 font-medium">{item.room?.name || 'Assigned Room'}</span>
+                          <span className="text-slate-600 dark:text-slate-300 font-medium">{item.room?.name || 'Assigned Room'}</span>
                         )}
                       </td>
                       <td className="px-3 py-3.5">
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
                             item.status === 'scheduled'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                               : item.status === 'rescheduled'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : 'bg-slate-100 text-slate-700'
+                              ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                           }`}
                         >
                           {item.status}
@@ -446,7 +457,7 @@ function Schedule() {
                             href={`${API_BASE_URL}/interviews/${item._id}/calendar.ics`}
                             download
                             title="Download RFC-5545 .ics Calendar Invite"
-                            className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
                           >
                             <Download size={14} />
                           </a>
