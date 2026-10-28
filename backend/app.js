@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 
 import authRoutes from "./routes/authRoutes.js";
 import driveRoutes from "./routes/driveRoutes.js";
@@ -15,6 +16,7 @@ import { getMyInterviews, getInterviewsByVersion } from "./controllers/schedulin
 import { verifyJWT } from "./middleware/auth.middleware.js";
 
 const app = express();
+app.use(helmet());
 
 
 const allowedOrigins = process.env.CORS_ORIGIN
