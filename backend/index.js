@@ -1,7 +1,8 @@
 
 import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
 
-dotenv.config({ path: "./.env" });
+dotenv.config({ path: fileURLToPath(new URL("./.env", import.meta.url)) });
 
 // Import database and app after loading environment variables
 const { default: connectDB } = await import("./db/index.js");

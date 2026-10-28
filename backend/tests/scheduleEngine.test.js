@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildSchedulePlan,
   dedupeScheduledInterviews,
+  filterScheduledInterviewsByPublishedVersion,
   intervalsOverlap,
   matchesSkills,
 } from "../utils/scheduleEngine.js";
@@ -67,6 +68,18 @@ test("carried copies of one active appointment count as one booking", () => {
     endTime: new Date("2026-10-27T09:45:00.000Z"),
   };
   assert.equal(dedupeScheduledInterviews([item, { ...item }]).length, 1);
+});
+
+test("candidate pipeline only treats interviews in published schedules as scheduled", () => {
+  const interviews = [
+    { status: "scheduled", scheduleVersion: "published-version" },
+    { status: "scheduled", scheduleVersion: "draft-version" },
+    { status: "completed", scheduleVersion: "published-version" },
+  ];
+
+  const scheduled = filterScheduledInterviewsByPublishedVersion(interviews, ["published-version"]);
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0].scheduleVersion, "published-version");
 });
 
 test("every required skill must match exactly", () => {

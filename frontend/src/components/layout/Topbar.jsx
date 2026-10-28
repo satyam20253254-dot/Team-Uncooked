@@ -9,7 +9,6 @@ import {
   CalendarDays,
   CircleCheck,
   ListOrdered,
-  UserCheck,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useDrive } from '../../context/DriveContext'

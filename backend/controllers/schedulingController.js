@@ -14,6 +14,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import {
   buildSchedulePlan,
   dedupeScheduledInterviews,
+  filterScheduledInterviewsByPublishedVersion,
   intervalsOverlap,
   matchesSkills,
 } from "../utils/scheduleEngine.js";
@@ -1046,7 +1047,7 @@ export const getMyPipelineStatus = asyncHandler(async (req, res) => {
   const { driveId } = req.params;
   if (!mongoose.isValidObjectId(driveId)) throw new ApiError(400, "Invalid drive ID");
 
-  const [drive, rounds, participant, myInterviews] = await Promise.all([
+  const [drive, rounds, participant, myInterviews, publishedVersions] = await Promise.all([
     Drive.findById(driveId),
     Round.find({ driveId }).sort({ sequence: 1 }),
     DriveParticipant.findOne({ driveId, userId: req.user._id, role: "candidate" }),
@@ -1055,6 +1056,7 @@ export const getMyPipelineStatus = asyncHandler(async (req, res) => {
       .populate("room", "name isVirtual meetingLink")
       .populate("round", "name sequence durationMinutes")
       .sort({ startTime: -1 }),
+    ScheduleVersion.find({ drive: driveId, status: "published" }).select("_id"),
   ]);
 
   if (!drive) throw new ApiError(404, "Drive not found");
@@ -1073,7 +1075,10 @@ export const getMyPipelineStatus = asyncHandler(async (req, res) => {
     completedInterviews.map((i) => (i.round?._id ? i.round._id.toString() : i.round.toString()))
   );
 
-  const scheduledInterviews = myInterviews.filter((i) => ["scheduled", "rescheduled"].includes(i.status));
+  const scheduledInterviews = filterScheduledInterviewsByPublishedVersion(
+    myInterviews,
+    publishedVersions.map((version) => version._id)
+  );
 
   const eligibleSet = new Set((participant.eligibleRoundIds || []).map((id) => id.toString()));
 
